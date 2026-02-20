@@ -1,6 +1,10 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Symbol, Vec, String};
 
+pub mod progress;
+#[cfg(test)]
+mod progress_test;
+
 #[contracttype]
 pub enum DataKey {
     Credential(u64),
