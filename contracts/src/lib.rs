@@ -3,8 +3,11 @@ use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Symbol, Ve
 
 pub mod progress;
 pub mod eventLogger;
+pub mod courseMetadata;
 #[cfg(test)]
 mod progress_test;
+#[cfg(test)]
+mod courseMetadata_test;
 
 
 #[contracttype]
