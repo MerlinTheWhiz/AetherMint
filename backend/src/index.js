@@ -9,6 +9,7 @@ dotenv.config();
 // Import routes
 const quizRoutes = require('./routes/quizRoutes');
 const eventLoggerRoutes = require('./routes/eventLoggerRoutes');
+const syncRoutes = require('./routes/syncRoutes');
 
 // Initialize Express app
 const app = express();
@@ -28,6 +29,7 @@ app.use((req, res, next) => {
 // API routes
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/events', eventLoggerRoutes);
+app.use('/api/sync', syncRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -74,6 +76,7 @@ app.listen(PORT, () => {
   console.log(`🚀 AetherMint Education Backend running on port ${PORT}`);
   console.log(`📚 Quiz Management API available at /api/quizzes`);
   console.log(`📊 Event Logger API available at /api/events`);
+  console.log(`🔄 Sync API available at /api/sync`);
   console.log(`🏥 Health check available at /api/health`);
 });
 
