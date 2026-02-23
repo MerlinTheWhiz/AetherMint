@@ -1,6 +1,10 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec};
 
+pub mod credentials;
+#[cfg(test)]
+mod credentials_test;
+
 pub mod progress;
 pub mod event_logger;
 pub mod user_profile;
@@ -22,6 +26,51 @@ mod syncCoordination_test;
 
 
 #[contracttype]
+#[derive(Clone)]
+pub struct UserProfile {
+    pub owner: Address,
+    pub username: String,
+    pub email: Option<String>,
+    pub bio: Option<String>,
+    pub avatar_url: Option<String>,
+    pub created_at: u64,
+    pub updated_at: u64,
+    pub achievements: Vec<u64>,
+    pub credentials: Vec<u64>,      // ← ADD THIS
+    pub reputation: u64,            // ← optional, but good for future
+    pub privacy_level: PrivacyLevel,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub enum PrivacyLevel {
+    Public,
+    Private,
+    FriendsOnly,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub enum ProfileKey {
+    User(Address),
+    Achievement(u64),
+    Username(String),
+    AchievementByUser(Address, u64),
+    UserAchievements(Address),
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct Achievement {
+    pub id: u64,
+    pub user: Address,
+    pub title: String,
+    pub description: String,
+    pub earned_at: u64,
+    pub badge_url: Option<String>,
+    pub verified: bool,
+}
+
 pub enum DataKey {
     Credential(u64),
     CredentialCount,
@@ -191,4 +240,36 @@ impl AetherMintContract {
             .get(&DataKey::CredentialCount)
             .unwrap_or(0)
     }
+
+    pub fn issue_credential(
+    env: Env,
+    issuer: Address,
+    recipient: Address,
+    title: String,
+    description: String,
+    course_id: String,
+    ipfs_hash: String,
+) -> u64 {
+    credentials::issue_credential(&env, issuer, recipient, title, description, course_id, ipfs_hash)
+}
+
+pub fn verify_credential(env: Env, credential_id: u64) -> bool {
+    credentials::verify_credential(&env, credential_id)
+}
+
+pub fn revoke_credential(env: Env, credential_id: u64, revoker: Address) {
+    credentials::revoke_credential(&env, credential_id, revoker)
+}
+
+pub fn get_user_credentials(env: Env, user: Address) -> Vec<u64> {
+    credentials::get_user_credentials(&env, user)
+}
+
+pub fn get_credential(env: Env, credential_id: u64) -> Credential {
+    credentials::get_credential(&env, credential_id)
+}
+
+pub fn get_credential_count(env: Env) -> u64 {
+    credentials::get_credential_count(&env)
+}
 }

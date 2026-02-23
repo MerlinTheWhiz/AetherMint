@@ -12,6 +12,8 @@ pub struct UserProfile {
     pub created_at: u64,
     pub updated_at: u64,
     pub achievements: Vec<u64>,
+    pub credentials: Vec<u64>,      // ← ADD THIS
+    pub reputation: u64,            // ← optional, but good for future
     pub privacy_level: PrivacyLevel,
 }
 
@@ -281,4 +283,54 @@ impl UserProfileContract {
             None
         }
     }
+
+    /// Add a credential to user's profile
+pub fn add_credential(
+    env: &Env,
+    user: Address,
+    credential_id: u64,
+) {
+    let mut profile = env.storage().instance()
+        .get::<_, UserProfile>(&ProfileKey::User(user.clone()))
+        .unwrap_or_else(|| {
+            // Create minimal profile if missing (fallback)
+            UserProfile {
+                owner: user.clone(),
+                username: String::from_str(env, "unknown"),
+                email: None,
+                bio: None,
+                avatar_url: None,
+                created_at: env.ledger().timestamp(),
+                updated_at: env.ledger().timestamp(),
+                achievements: Vec::new(env),
+                credentials: Vec::new(env),
+                reputation: 0,
+                privacy_level: PrivacyLevel::Public,
+            }
+        });
+
+    if !profile.credentials.contains(&credential_id) {
+        profile.credentials.push_back(credential_id);
+        profile.updated_at = env.ledger().timestamp();
+        env.storage().instance().set(&ProfileKey::User(user.clone()), &profile);
+
+        // Also maintain separate user credentials list for fast lookup
+        let mut user_creds: Vec<u64> = env.storage().instance()
+            .get(&ProfileKey::UserCredentials(user.clone()))
+            .unwrap_or(Vec::new(env));
+        if !user_creds.contains(&credential_id) {
+            user_creds.push_back(credential_id);
+            env.storage().instance().set(&ProfileKey::UserCredentials(user), &user_creds);
+        }
+    }
+}
+
+/// Get all credential IDs for a user (fast path)
+pub fn get_user_credential_ids(env: &Env, user: Address) -> Vec<u64> {
+    env.storage().instance()
+        .get(&ProfileKey::UserCredentials(user))
+        .unwrap_or(Vec::new(env))
+}
+
+    
 }
