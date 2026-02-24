@@ -19,13 +19,15 @@ interface ProgressChartProps {
   courseId?: string;
   timeRange: 'week' | 'month' | 'quarter' | 'year';
   onTimeRangeChange: (range: 'week' | 'month' | 'quarter' | 'year') => void;
+  onDataLoaded?: (data: any) => void;
 }
 
 export const ProgressChart: React.FC<ProgressChartProps> = ({
   userId,
   courseId,
   timeRange,
-  onTimeRangeChange
+  onTimeRangeChange,
+  onDataLoaded
 }) => {
   const [data, setData] = useState<ProgressData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
       
       const progressData = await response.json();
       setData(progressData);
+      if (onDataLoaded) onDataLoaded({ progressData });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

@@ -29,9 +29,10 @@ interface Achievement {
 
 interface CompletionStatsProps {
   userId: string;
+  onDataLoaded?: (data: any) => void;
 }
 
-export const CompletionStats: React.FC<CompletionStatsProps> = ({ userId }) => {
+export const CompletionStats: React.FC<CompletionStatsProps> = ({ userId, onDataLoaded }) => {
   const [courseStats, setCourseStats] = useState<CourseStats[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,7 @@ export const CompletionStats: React.FC<CompletionStatsProps> = ({ userId }) => {
 
       setCourseStats(coursesData);
       setAchievements(achievementsData);
+      if (onDataLoaded) onDataLoaded({ completionStats: coursesData, achievements: achievementsData });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
