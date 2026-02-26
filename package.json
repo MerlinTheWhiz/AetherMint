@@ -47,5 +47,8 @@
     "contracts",
     "backend",
     "frontend"
-  ]
+  ],
+  "dependencies": {
+    "recharts": "^3.7.0"
+  }
 }
