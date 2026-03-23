@@ -10,6 +10,7 @@ dotenv.config();
 const quizRoutes = require('./routes/quizRoutes');
 const eventLoggerRoutes = require('./routes/eventLoggerRoutes');
 const syncRoutes = require('./routes/syncRoutes');
+const contentRoutes = require('./routes/content');
 
 // Initialize Express app
 const app = express();
@@ -30,6 +31,7 @@ app.use((req, res, next) => {
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/events', eventLoggerRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/content', contentRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -77,6 +79,7 @@ app.listen(PORT, () => {
   console.log(`📚 Quiz Management API available at /api/quizzes`);
   console.log(`📊 Event Logger API available at /api/events`);
   console.log(`🔄 Sync API available at /api/sync`);
+  console.log(`📁 Content Management API available at /api/content`);
   console.log(`🏥 Health check available at /api/health`);
 });
 
