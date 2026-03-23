@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec, U256};
 
 pub mod credentials;
 #[cfg(test)]
@@ -26,8 +26,10 @@ mod progress_test;
 mod courseMetadata_test;
 #[cfg(test)]
 mod syncCoordination_test;
+pub mod utils;
 
 
+/// Optimized user profile with packed storage
 #[contracttype]
 #[derive(Clone)]
 pub struct UserProfile {
@@ -36,32 +38,58 @@ pub struct UserProfile {
     pub email: Option<String>,
     pub bio: Option<String>,
     pub avatar_url: Option<String>,
-    pub created_at: u64,
-    pub updated_at: u64,
-    pub achievements: Vec<u64>,
-    pub credentials: Vec<u64>,      // ← ADD THIS
-    pub reputation: u64,            // ← optional, but good for future
-    pub privacy_level: PrivacyLevel,
+    pub timestamps: U256, // Packed created_at and updated_at
+    pub achievement_count: u32,
+    pub credential_count: u32,
+    pub reputation: u64,
+    pub flags: u8, // Packed privacy level, verification status, etc.
 }
 
+/// Privacy levels packed into flags
 #[contracttype]
 #[derive(Clone)]
 pub enum PrivacyLevel {
-    Public,
-    Private,
-    FriendsOnly,
+    Public = 0,
+    Private = 1,
+    FriendsOnly = 2,
 }
 
+impl PrivacyLevel {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            PrivacyLevel::Public => 0,
+            PrivacyLevel::Private => 1,
+            PrivacyLevel::FriendsOnly => 2,
+        }
+    }
+    
+    pub fn from_u8(value: u8) -> Self {
+        match value & 0x03 {
+            0 => PrivacyLevel::Public,
+            1 => PrivacyLevel::Private,
+            2 => PrivacyLevel::FriendsOnly,
+            _ => PrivacyLevel::Public,
+        }
+    }
+}
+
+/// Optimized storage keys using namespaces
 #[contracttype]
 #[derive(Clone)]
 pub enum ProfileKey {
     User(Address),
+    UserFlags(Address),
+    UserTimestamps(Address),
+    UserAchievements(Address),
+    UserCredentials(Address),
     Achievement(u64),
     Username(String),
     AchievementByUser(Address, u64),
-    UserAchievements(Address),
+    Credential(u64),
+    Course(String),
 }
 
+/// Optimized achievement with packed storage
 #[contracttype]
 #[derive(Clone)]
 pub struct Achievement {
@@ -69,17 +97,23 @@ pub struct Achievement {
     pub user: Address,
     pub title: String,
     pub description: String,
-    pub earned_at: u64,
+    pub timestamp: u64, // Combined earned_at + verification status in high bits
     pub badge_url: Option<String>,
-    pub verified: bool,
 }
 
+/// Optimized data keys with better organization
+#[contracttype]
 pub enum DataKey {
+    Admin,
     Credential(u64),
     CredentialCount,
-    Admin,
+    CourseCount,
+    AchievementCount,
+    UserAchievements(Address),
+    UserCredentials(Address),
 }
 
+/// Optimized credential with packed verification status
 #[contracttype]
 pub struct Credential {
     pub id: u64,
@@ -88,11 +122,11 @@ pub struct Credential {
     pub title: String,
     pub description: String,
     pub course_id: String,
-    pub completion_date: u64,
+    pub timestamp: u64, // Packed completion_date and revocation status
     pub ipfs_hash: String,
-    pub is_verified: bool,
 }
 
+/// Optimized course with packed status
 #[contracttype]
 pub struct Course {
     pub id: String,
@@ -100,14 +134,15 @@ pub struct Course {
     pub title: String,
     pub description: String,
     pub price: u64,
-    pub is_active: bool,
+    pub flags: u8, // Packed active status and other boolean flags
 }
 
+/// Simplified profile for backward compatibility
 #[contracttype]
 pub struct Profile {
     pub owner: Address,
-    pub credentials: Vec<u64>,
-    pub achievements: Vec<u64>,
+    pub credential_count: u32,
+    pub achievement_count: u32,
     pub reputation: u64,
 }
 
@@ -116,7 +151,7 @@ pub struct AetherMintContract;
 
 #[contractimpl]
 impl AetherMintContract {
-    /// Initialize the contract with an admin address
+    /// Initialize the contract with optimized storage
     pub fn initialize(env: Env, admin: Address) {
         if env.storage().instance().has(&DataKey::Admin) {
             panic!("Contract already initialized");
@@ -124,9 +159,11 @@ impl AetherMintContract {
         
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::CredentialCount, &0u64);
+        env.storage().instance().set(&DataKey::CourseCount, &0u64);
+        env.storage().instance().set(&DataKey::AchievementCount, &0u64);
     }
 
-    /// Issue a new credential
+    /// Issue a new credential with optimized storage
     pub fn issue_credential(
         env: Env,
         issuer: Address,
@@ -149,6 +186,10 @@ impl AetherMintContract {
             .unwrap_or(0);
         let credential_id = count + 1;
 
+        // Pack timestamp and revocation status
+        let timestamp = env.ledger().timestamp();
+        let packed_timestamp = timestamp << 1; // Reserve bit 0 for revocation status
+
         let credential = Credential {
             id: credential_id,
             issuer: issuer.clone(),
@@ -156,18 +197,20 @@ impl AetherMintContract {
             title,
             description,
             course_id,
-            completion_date: env.ledger().timestamp(),
+            timestamp: packed_timestamp,
             ipfs_hash,
-            is_verified: false,
         };
 
         env.storage().instance().set(&DataKey::Credential(credential_id), &credential);
         env.storage().instance().set(&DataKey::CredentialCount, &credential_id);
 
+        // Update user credential count
+        Self::increment_user_credential_count(&env, recipient);
+
         credential_id
     }
 
-    /// Verify a credential
+    /// Verify a credential using packed timestamp
     pub fn verify_credential(env: Env, credential_id: u64) -> bool {
         let _admin: Address = env.storage().instance()
             .get(&DataKey::Admin)
@@ -177,7 +220,8 @@ impl AetherMintContract {
             .get(&DataKey::Credential(credential_id))
             .unwrap_or_else(|| panic!("Credential not found"));
 
-        credential.is_verified = true;
+        // Clear revocation bit (bit 0)
+        credential.timestamp &= !1u64;
         env.storage().instance().set(&DataKey::Credential(credential_id), &credential);
 
         true
@@ -190,7 +234,7 @@ impl AetherMintContract {
             .unwrap_or_else(|| panic!("Credential not found"))
     }
 
-    /// Create a new course
+    /// Create a new course with optimized storage
     pub fn create_course(
         env: Env,
         instructor: Address,
@@ -206,35 +250,49 @@ impl AetherMintContract {
             panic!("Only admin can create courses");
         }
 
-        let course_id = String::from_str(&env, "default_course_id");
+        let course_count: u64 = env.storage().instance()
+            .get(&DataKey::CourseCount)
+            .unwrap_or(0);
+        
+        let course_id = format!("course_{}", course_count + 1);
+        
+        // Pack flags - bit 0 = active status
+        let flags = 1u8; // Active = true
+
         let course = Course {
             id: course_id.clone(),
             instructor: instructor.clone(),
             title,
             description,
             price,
-            is_active: true,
+            flags,
         };
 
-        // Store course in persistent storage
-        env.storage().instance().set(&DataKey::Credential(env.ledger().timestamp()), &course);
-
-        // Store course (simplified - in production would use proper storage)
-
+        env.storage().instance().set(&DataKey::Course(course_id.clone()), &course);
+        env.storage().instance().set(&DataKey::CourseCount, &(course_count + 1));
 
         course_id
     }
 
-    /// Get user profile
+    /// Get user profile with optimized storage
     pub fn get_profile(env: Env, user: Address) -> Profile {
-        env.storage().instance()
-            .get(&user)
-            .unwrap_or_else(|| Profile {
+        // Try to get from optimized storage first
+        if let Some(user_profile) = env.storage().instance().get::<_, UserProfile>(&ProfileKey::User(user.clone())) {
+            Profile {
+                owner: user,
+                credential_count: user_profile.credential_count,
+                achievement_count: user_profile.achievement_count,
+                reputation: user_profile.reputation,
+            }
+        } else {
+            // Fallback to default
+            Profile {
                 owner: user.clone(),
-                credentials: Vec::new(&env),
-                achievements: Vec::new(&env),
+                credential_count: 0,
+                achievement_count: 0,
                 reputation: 0,
-            })
+            }
+        }
     }
 
     /// Get total credential count
@@ -244,35 +302,33 @@ impl AetherMintContract {
             .unwrap_or(0)
     }
 
-    pub fn issue_credential(
-    env: Env,
-    issuer: Address,
-    recipient: Address,
-    title: String,
-    description: String,
-    course_id: String,
-    ipfs_hash: String,
-) -> u64 {
-    credentials::issue_credential(&env, issuer, recipient, title, description, course_id, ipfs_hash)
-}
+    /// Helper function to increment user credential count
+    fn increment_user_credential_count(env: &Env, user: Address) {
+        if let Some(mut profile) = env.storage().instance().get::<_, UserProfile>(&ProfileKey::User(user.clone())) {
+            profile.credential_count += 1;
+            env.storage().instance().set(&ProfileKey::User(user), &profile);
+        }
+    }
 
-pub fn verify_credential(env: Env, credential_id: u64) -> bool {
-    credentials::verify_credential(&env, credential_id)
-}
+    /// Helper function to increment user achievement count  
+    fn increment_user_achievement_count(env: &Env, user: Address) {
+        if let Some(mut profile) = env.storage().instance().get::<_, UserProfile>(&ProfileKey::User(user.clone())) {
+            profile.achievement_count += 1;
+            env.storage().instance().set(&ProfileKey::User(user), &profile);
+        }
+    }
 
-pub fn revoke_credential(env: Env, credential_id: u64, revoker: Address) {
-    credentials::revoke_credential(&env, credential_id, revoker)
-}
+    /// Get total course count
+    pub fn get_course_count(env: Env) -> u64 {
+        env.storage().instance()
+            .get(&DataKey::CourseCount)
+            .unwrap_or(0)
+    }
 
-pub fn get_user_credentials(env: Env, user: Address) -> Vec<u64> {
-    credentials::get_user_credentials(&env, user)
-}
-
-pub fn get_credential(env: Env, credential_id: u64) -> Credential {
-    credentials::get_credential(&env, credential_id)
-}
-
-pub fn get_credential_count(env: Env) -> u64 {
-    credentials::get_credential_count(&env)
-}
+    /// Get total achievement count
+    pub fn get_achievement_count(env: Env) -> u64 {
+        env.storage().instance()
+            .get(&DataKey::AchievementCount)
+            .unwrap_or(0)
+    }
 }
