@@ -8,7 +8,13 @@
     "dev": "nodemon src/index.js",
     "build": "babel src -d dist",
     "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix"
+    "lint:fix": "eslint src/ --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "test:verbose": "jest --verbose",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -38,7 +44,11 @@
     "@babel/core": "^7.22.17",
     "@babel/preset-env": "^7.22.15",
     "@types/node": "^20.5.1",
-    "@types/socket.io": "^3.0.2"
+    "@types/socket.io": "^3.0.2",
+    "mongodb-memory-server": "^8.15.1",
+    "ts-jest": "^29.1.1",
+    "babel-jest": "^29.6.2",
+    "jest-environment-node": "^29.6.2"
   },
   "keywords": [
     "stellar",
