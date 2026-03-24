@@ -33,7 +33,13 @@
     "multer": "^1.4.5-lts.1",
     "ipfs-http-client": "^60.0.1",
     "socket.io": "^4.7.2",
-    "mongoose": "^7.5.0"
+    "mongoose": "^7.5.0",
+    "express-validator": "^7.0.1",
+    "natural": "^6.5.0",
+    "compromise": "^14.10.0",
+    "uuid": "^9.0.0",
+    "cheerio": "^1.0.0-rc.12",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
@@ -57,7 +63,12 @@
     "api",
     "node.js",
     "express",
-    "postgresql"
+    "postgresql",
+    "plagiarism",
+    "plagiarism-detection",
+    "academic-integrity",
+    "code-analysis",
+    "text-similarity"
   ],
   "author": "jobbykings",
   "license": "MIT"
