@@ -2,19 +2,27 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const dotenv = require('dotenv');
+const { createServer } = require('http');
+const { initWebsocketService } = require('./services/websocketService');
+const { setSyncWebsocketEmitter } = require('./services/syncService');
 
 // Load environment variables
 dotenv.config();
 
 // Import routes
-const quizRoutes = require('./routes/quizRoutes');
-const eventLoggerRoutes = require('./routes/eventLoggerRoutes');
-const syncRoutes = require('./routes/syncRoutes');
+const resolveRoute = (routeModule) => routeModule.default || routeModule;
+const quizRoutes = resolveRoute(require('./routes/quizRoutes'));
+const eventLoggerRoutes = resolveRoute(require('./routes/eventLoggerRoutes'));
+const syncRoutes = resolveRoute(require('./routes/syncRoutes'));
 const contentRoutes = require('./routes/content');
 const transactionRoutes = require('./routes/transactions');
+const collaborationRoutes = resolveRoute(require('./routes/collaborationRoutes'));
 
 // Initialize Express app
 const app = express();
+const server = createServer(app);
+const websocketService = initWebsocketService(server);
+setSyncWebsocketEmitter((userId, event, data) => websocketService.emitToUser(userId, event, data));
 
 // Middleware
 app.use(helmet());
@@ -34,6 +42,7 @@ app.use('/api/events', eventLoggerRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/collaboration', collaborationRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -79,7 +88,6 @@ const transactionQueue = require('./services/transactionQueue');
 const transactionProcessor = require('./workers/transactionProcessor');
 const transactionEvents = require('./events/transactionEvents');
 
-// Start server
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
@@ -93,18 +101,18 @@ async function startServer() {
     await transactionQueue.startProcessing();
     await transactionProcessor.start();
     await transactionEvents.startListening();
-    
-    app.listen(PORT, () => {
+
+    server.listen(PORT, () => {
       console.log(`🚀 AetherMint Education Backend running on port ${PORT}`);
       console.log(`📚 Quiz Management API available at /api/quizzes`);
       console.log(`📊 Event Logger API available at /api/events`);
       console.log(`🔄 Sync API available at /api/sync`);
       console.log(`📁 Content Management API available at /api/content`);
       console.log(`💰 Transaction Queue API available at /api/transactions`);
+      console.log(`🤝 Collaboration API available at /api/collaboration`);
       console.log(`🏥 Health check available at /api/health`);
       console.log(`✅ Transaction Queue System initialized successfully`);
     });
-    
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
@@ -128,6 +136,9 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
 
 module.exports = app;
+module.exports.server = server;
