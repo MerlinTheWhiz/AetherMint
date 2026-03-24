@@ -1,7 +1,8 @@
 export enum UserRole {
   STUDENT = 'student',
-  EDUCATOR = 'educator',
-  ADMIN = 'admin'
+  INSTRUCTOR = 'instructor',
+  ADMIN = 'admin',
+  MODERATOR = 'moderator'
 }
 
 export enum PrivacyLevel {
