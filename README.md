@@ -34,6 +34,7 @@ AetherMint is a decentralized learning and credential verification platform powe
 - **Redis** - High-performance caching
 - **Prisma** - Modern database ORM
 - **JWT** - Secure authentication
+- **IPFS HTTP Client** - Decentralized storage integration
 
 ### **Smart Contracts**
 - **Rust** - Memory-safe smart contract language
@@ -206,8 +207,46 @@ soroban contract invoke \
 
 ### Profiles
 - `GET /api/profiles/:address` - Learning profile
-- `PUT /api/profiles/:address` - Update profile
-- `GET /api/profiles/:address/achievements` - User achievements
+
+### IPFS Content Management
+- `POST /api/content/upload` - Upload file to IPFS
+- `POST /api/content/upload/batch` - Upload multiple files
+- `GET /api/content/:cid` - Retrieve content from IPFS
+- `GET /api/content/:cid/metadata` - Get content metadata
+- `POST /api/content/:cid/pin` - Pin content to IPFS
+- `DELETE /api/content/:cid/pin` - Unpin content from IPFS
+- `GET /api/content/health` - Check IPFS service health
+
+## 📁 IPFS Integration
+
+AetherMint integrates with IPFS (InterPlanetary File System) for decentralized content storage, providing:
+
+### Features
+- **File Upload & Storage** - Upload educational content to IPFS with metadata
+- **Content Retrieval** - Retrieve content in multiple formats (buffer, base64, stream)
+- **Progress Tracking** - Real-time upload progress with WebSocket support
+- **Authentication** - JWT-based auth with role-based permissions
+- **Caching** - In-memory caching for improved performance
+- **Error Handling** - Comprehensive error handling with retry mechanisms
+
+### Usage
+```typescript
+import ipfsClient from './lib/ipfs';
+
+// Upload a file
+const result = await ipfsClient.uploadFile(file, {
+  metadata: { course: 'math101' },
+  onProgress: (progress) => console.log(`${progress.progress}%`)
+});
+
+// Retrieve content
+const content = await ipfsClient.getContent(result.cid, 'base64');
+```
+
+### Configuration
+See `backend/.env.example` for IPFS configuration options.
+
+For detailed documentation, see [IPFS_INTEGRATION_README.md](./IPFS_INTEGRATION_README.md).
 
 ### Gas Optimization
 - `GET /api/gas/benchmarks` - View gas usage benchmarks

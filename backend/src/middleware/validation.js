@@ -381,31 +381,25 @@ const validateUserTierLimits = async (req, res, next) => {
     const user = req.user;
     const { transactions } = req.body;
     
-    if (!user || !user.tier) {
+    if (!user || !user.role) {
       return next();
     }
 
-    const tierLimits = {
-      basic: { maxPerBatch: 10, maxPerHour: 50 },
-      premium: { maxPerBatch: 50, maxPerHour: 200 },
-      enterprise: { maxPerBatch: 200, maxPerHour: 1000 },
-    };
+    const securityConfig = require('../config/security');
+    const roleKey = user.role === 'educator' ? 'instructor' : user.role;
+    const limits = securityConfig.tiers[roleKey] || securityConfig.tiers.default;
 
-    const limits = tierLimits[user.tier] || tierLimits.basic;
-
-    // Check batch size limit
-    if (transactions && transactions.length > limits.maxPerBatch) {
+    // Check batch size limit (if applicable for bulk transactions)
+    if (transactions && transactions.length > (limits.burst || 10)) {
       return res.status(429).json({
         success: false,
         message: 'Batch size exceeds tier limit',
-        error: `Maximum ${limits.maxPerBatch} transactions per batch for ${user.tier} tier`,
-        limit: limits.maxPerBatch,
+        error: `Maximum ${limits.burst || 10} transactions per batch for ${user.role} role`,
+        limit: limits.burst || 10,
         requested: transactions.length,
       });
     }
 
-    // In a real implementation, you would check hourly usage here
-    // For now, we'll just pass through
     next();
   } catch (error) {
     console.error('Tier limit validation error:', error);

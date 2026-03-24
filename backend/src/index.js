@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const dotenv = require('dotenv');
+const { createServer } = require('http');
+const { initWebsocketService } = require('./services/websocketService');
+const { setSyncWebsocketEmitter } = require('./services/syncService');
 
 // Load environment variables
 dotenv.config();
@@ -15,12 +18,27 @@ const cdnOptimizationRoutes = require('./routes/cdnOptimizationRoutes');
 
 // Initialize Express app
 const app = express();
+const server = createServer(app);
+const websocketService = initWebsocketService(server);
+setSyncWebsocketEmitter((userId, event, data) => websocketService.emitToUser(userId, event, data));
 
 // Middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Global Security Middlewares
+app.use(securityPerformanceTracker);
+app.use(checkBlacklist);
+app.use(ddosProtection);
+app.use(botDetection);
+app.use(advancedRestrictions);
+app.use(requestSanitizer);
+app.use(globalLimiter);
+
+// For authenticated routes, you might want to switch to tieredRateLimiter
+// but globalLimiter works as a safe default for all requests.
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -34,6 +52,7 @@ app.use('/api/events', eventLoggerRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/cdn', cdnOptimizationRoutes);
+
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -54,6 +73,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Security Pulse / Status (Admin only)
+app.get('/api/admin/security/pulse', authenticateToken, requireAdmin, async (req, res) => {
+  const pulse = await securityService.getSecurityPulse();
+  res.json({
+    success: true,
+    data: pulse
+  });
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -66,7 +94,7 @@ app.use('*', (req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal server error',
@@ -74,7 +102,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
+// Initialize Transaction Queue System
+const transactionQueue = require('./services/transactionQueue');
+const transactionProcessor = require('./workers/transactionProcessor');
+const transactionEvents = require('./events/transactionEvents');
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 AetherMint Education Backend running on port ${PORT}`);
@@ -82,8 +114,21 @@ app.listen(PORT, () => {
   console.log(`📊 Event Logger API available at /api/events`);
   console.log(`🔄 Sync API available at /api/sync`);
   console.log(`⚡ Transaction Queue API available at /api/transactions`);
-  console.log(`� CDN Optimization API available at /api/cdn`);
-  console.log(`�🏥 Health check available at /api/health`);
+  console.log(`🌐 CDN Optimization API available at /api/cdn`);
+  console.log(`🏥 Health check available at /api/health`);
 });
 
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  await transactionQueue.stopProcessing();
+  await transactionProcessor.stop();
+  await transactionEvents.stopListening();
+  process.exit(0);
+});
+
+if (require.main === module) {
+  startServer();
+}
+
 module.exports = app;
+module.exports.server = server;

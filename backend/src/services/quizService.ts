@@ -181,7 +181,7 @@ class QuizService {
         };
       }
 
-      const updatedQuiz: Quiz = {
+      const updatedQuiz: any = {
         ...existingQuiz,
         ...updateRequest,
         id: quizId, // Ensure ID doesn't change
