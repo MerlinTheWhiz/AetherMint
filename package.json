@@ -15,6 +15,11 @@
     "lint": "npm run lint:backend && npm run lint:frontend",
     "lint:backend": "cd backend && npm run lint",
     "lint:frontend": "cd frontend && npm run lint",
+    "test": "npm run test:contracts && npm run test:backend && npm run test:frontend",
+    "test:contracts": "cd contracts && cargo test",
+    "test:backend": "cd backend && npm run test",
+    "test:frontend": "cd frontend && npm run test",
+    "test:integration": "cd backend && npm run test:integration",
     "deploy:local": "cd contracts && npm run deploy:local",
     "deploy:testnet": "cd contracts && npm run deploy:testnet",
     "clean": "rm -rf node_modules && find . -name 'node_modules' -exec rm -rf {} +",
@@ -63,12 +68,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jobbykings/aethermint-education.git"
+    "url": "https://github.com/akordavid373/aethermint-education.git"
   },
   "bugs": {
-    "url": "https://github.com/jobbykings/aethermint-education/issues"
+    "url": "https://github.com/akordavid373/aethermint-education/issues"
   },
-  "homepage": "https://github.com/jobbykings/aethermint-education#readme",
+  "homepage": "https://github.com/akordavid373/aethermint-education#readme",
   "devDependencies": {
     "concurrently": "^8.2.0"
   },

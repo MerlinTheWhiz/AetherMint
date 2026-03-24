@@ -511,6 +511,13 @@ class TransactionQueue extends EventEmitter {
   }
 
   /**
+   * Cleanup resources (alias for destroy)
+   */
+  async cleanup() {
+    return this.destroy();
+  }
+
+  /**
    * Cleanup resources
    */
   async destroy() {
@@ -524,4 +531,7 @@ class TransactionQueue extends EventEmitter {
 // Create singleton instance
 const transactionQueue = new TransactionQueue();
 
-module.exports = transactionQueue;
+module.exports = {
+  TransactionQueue,
+  transactionQueue
+};

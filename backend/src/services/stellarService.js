@@ -1,4 +1,5 @@
 const { Server, Networks, TransactionBuilder, Operation, Asset, Memo, MemoText } = require('@stellar/stellar-sdk');
+const { Contract } = require('soroban-client');
 const axios = require('axios');
 
 class StellarService {
@@ -30,6 +31,26 @@ class StellarService {
       operationCount: 0,
       congestionLevel: 0,
     };
+
+    // Credential expiration monitoring
+    this.credentialRegistry = {
+      contractId: process.env.CREDENTIAL_REGISTRY_CONTRACT_ID,
+      sorobanRpc: process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org:443',
+    };
+
+    // Expiration monitoring configuration
+    this.expirationConfig = {
+      checkInterval: parseInt(process.env.CREDENTIAL_EXPIRATION_CHECK_INTERVAL) || 300000, // 5 minutes
+      warningThreshold: parseInt(process.env.CREDENTIAL_EXPIRATION_WARNING_THRESHOLD) || 86400, // 24 hours
+      batchSize: parseInt(process.env.CREDENTIAL_EXPIRATION_BATCH_SIZE) || 50,
+      autoRenewalEnabled: process.env.AUTO_RENEWAL_ENABLED === 'true',
+      notificationEnabled: process.env.EXPIRATION_NOTIFICATIONS_ENABLED === 'true',
+    };
+
+    // Start expiration monitoring if enabled
+    if (process.env.CREDENTIAL_EXPIRATION_MONITORING_ENABLED === 'true') {
+      this.startExpirationMonitoring();
+    }
   }
 
   async getNetworkStatus() {
@@ -612,6 +633,459 @@ class StellarService {
     }
 
     return null;
+  }
+
+  // ===== Credential Expiration Monitoring =====
+
+  /**
+   * Start automated credential expiration monitoring
+   */
+  startExpirationMonitoring() {
+    console.log('🔔 Starting credential expiration monitoring...');
+    
+    setInterval(async () => {
+      try {
+        await this.checkCredentialExpirations();
+      } catch (error) {
+        console.error('❌ Error during credential expiration check:', error);
+      }
+    }, this.expirationConfig.checkInterval);
+
+    // Run initial check
+    this.checkCredentialExpirations().catch(console.error);
+  }
+
+  /**
+   * Check for expiring credentials and handle notifications/renewals
+   */
+  async checkCredentialExpirations() {
+    try {
+      console.log('🔍 Checking credential expirations...');
+      
+      // Get credentials expiring soon
+      const expiringSoon = await this.getCredentialsExpiringSoon(this.expirationConfig.warningThreshold);
+      
+      if (expiringSoon.length > 0) {
+        console.log(`⏰ Found ${expiringSoon.length} credentials expiring soon`);
+        
+        // Process each expiring credential
+        for (const credential of expiringSoon) {
+          await this.processExpiringCredential(credential);
+        }
+      }
+
+      // Check for already expired credentials
+      const expired = await this.getExpiredCredentials();
+      if (expired.length > 0) {
+        console.log(`⚠️ Found ${expired.length} expired credentials`);
+        
+        // Process expired credentials
+        for (const credential of expired) {
+          await this.processExpiredCredential(credential);
+        }
+      }
+
+      // Batch update expiration status
+      await this.batchUpdateExpirationStatus();
+
+    } catch (error) {
+      console.error('Failed to check credential expirations:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get credentials that will expire within the specified time window
+   */
+  async getCredentialsExpiringSoon(withinSeconds) {
+    try {
+      const contract = new Contract(this.credentialRegistry.contractId);
+      const rpc = new (require('soroban-client')).Server(this.credentialRegistry.sorobanRpc);
+      
+      const result = await rpc.simulateTransaction({
+        source: process.env.ADMIN_PUBLIC_KEY,
+        transaction: new TransactionBuilder(
+          await this.server.loadAccount(process.env.ADMIN_PUBLIC_KEY),
+          { networkPassphrase: this.network }
+        )
+          .addOperation(Operation.invokeContractFunction({
+            contract: this.credentialRegistry.contractId,
+            function: 'get_credentials_expiring_soon',
+            args: [withinSeconds.toString()],
+          }))
+          .setTimeout(30)
+          .build(),
+      });
+
+      if (result.results && result.results[0]) {
+        return this.parseCredentialIds(result.results[0].value);
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Failed to get credentials expiring soon:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get list of expired credentials
+   */
+  async getExpiredCredentials() {
+    try {
+      const contract = new Contract(this.credentialRegistry.contractId);
+      const rpc = new (require('soroban-client')).Server(this.credentialRegistry.sorobanRpc);
+      
+      const result = await rpc.simulateTransaction({
+        source: process.env.ADMIN_PUBLIC_KEY,
+        transaction: new TransactionBuilder(
+          await this.server.loadAccount(process.env.ADMIN_PUBLIC_KEY),
+          { networkPassphrase: this.network }
+        )
+          .addOperation(Operation.invokeContractFunction({
+            contract: this.credentialRegistry.contractId,
+            function: 'get_expired_credentials',
+            args: [],
+          }))
+          .setTimeout(30)
+          .build(),
+      });
+
+      if (result.results && result.results[0]) {
+        return this.parseCredentialIds(result.results[0].value);
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Failed to get expired credentials:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Process a credential that is expiring soon
+   */
+  async processExpiringCredential(credential) {
+    try {
+      console.log(`⏰ Processing expiring credential ${credential.id}`);
+      
+      // Send expiration warning notification
+      if (this.expirationConfig.notificationEnabled) {
+        await this.sendExpirationWarning(credential);
+      }
+
+      // Auto-renew if enabled and configured
+      if (this.expirationConfig.autoRenewalEnabled && credential.autoRenewal) {
+        await this.autoRenewCredential(credential);
+      }
+
+      // Log expiration warning event
+      await this.logExpirationEvent('warning', credential);
+
+    } catch (error) {
+      console.error(`Failed to process expiring credential ${credential.id}:`, error);
+    }
+  }
+
+  /**
+   * Process an expired credential
+   */
+  async processExpiredCredential(credential) {
+    try {
+      console.log(`⚠️ Processing expired credential ${credential.id}`);
+      
+      // Send expiration notification
+      if (this.expirationConfig.notificationEnabled) {
+        await this.sendExpirationNotification(credential);
+      }
+
+      // Log expiration event
+      await this.logExpirationEvent('expired', credential);
+
+      // Update credential status in database
+      await this.updateCredentialStatus(credential.id, 'expired');
+
+    } catch (error) {
+      console.error(`Failed to process expired credential ${credential.id}:`, error);
+    }
+  }
+
+  /**
+   * Send expiration warning notification
+   */
+  async sendExpirationWarning(credential) {
+    try {
+      // Implementation would depend on your notification system
+      console.log(`📧 Sending expiration warning for credential ${credential.id} to user ${credential.recipient}`);
+      
+      // Example: Send email, push notification, or in-app notification
+      if (process.env.NOTIFICATION_SERVICE_URL) {
+        await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/send`, {
+          type: 'credential_expiration_warning',
+          recipient: credential.recipient,
+          data: {
+            credentialId: credential.id,
+            title: credential.title,
+            expiresAt: credential.expiresAt,
+            daysUntilExpiry: Math.ceil((credential.expiresAt - Date.now() / 1000) / 86400),
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send expiration warning:', error);
+    }
+  }
+
+  /**
+   * Send expiration notification
+   */
+  async sendExpirationNotification(credential) {
+    try {
+      console.log(`📧 Sending expiration notification for credential ${credential.id} to user ${credential.recipient}`);
+      
+      if (process.env.NOTIFICATION_SERVICE_URL) {
+        await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/send`, {
+          type: 'credential_expired',
+          recipient: credential.recipient,
+          data: {
+            credentialId: credential.id,
+            title: credential.title,
+            expiredAt: credential.expiresAt,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send expiration notification:', error);
+    }
+  }
+
+  /**
+   * Auto-renew a credential
+   */
+  async autoRenewCredential(credential) {
+    try {
+      console.log(`🔄 Auto-renewing credential ${credential.id}`);
+      
+      const renewalDuration = credential.defaultRenewalDuration || 2592000; // 30 days default
+      
+      const transaction = await this.buildRenewalTransaction(credential.id, renewalDuration);
+      const result = await this.submitTransaction({
+        type: 'credential_renewal',
+        payload: {
+          ...transaction,
+          secretKey: process.env.ADMIN_SECRET_KEY,
+        },
+        userId: credential.recipient,
+      });
+
+      console.log(`✅ Credential ${credential.id} renewed successfully:`, result.hash);
+      
+      // Send renewal confirmation
+      if (this.expirationConfig.notificationEnabled) {
+        await this.sendRenewalConfirmation(credential, renewalDuration);
+      }
+
+    } catch (error) {
+      console.error(`Failed to auto-renew credential ${credential.id}:`, error);
+    }
+  }
+
+  /**
+   * Build credential renewal transaction
+   */
+  async buildRenewalTransaction(credentialId, extensionDuration) {
+    const adminAccount = await this.server.loadAccount(process.env.ADMIN_PUBLIC_KEY);
+    
+    const transaction = new TransactionBuilder(adminAccount, {
+      fee: '1000',
+      networkPassphrase: this.network,
+    })
+      .addOperation(Operation.invokeContractFunction({
+        contract: this.credentialRegistry.contractId,
+        function: 'renew_credential',
+        args: [
+          credentialId.toString(),
+          process.env.ADMIN_PUBLIC_KEY,
+          extensionDuration.toString(),
+        ],
+      }))
+      .setTimeout(30)
+      .build();
+
+    return { transaction, gasOptimization: { estimatedFee: 1000 } };
+  }
+
+  /**
+   * Send renewal confirmation notification
+   */
+  async sendRenewalConfirmation(credential, extensionDuration) {
+    try {
+      console.log(`📧 Sending renewal confirmation for credential ${credential.id}`);
+      
+      if (process.env.NOTIFICATION_SERVICE_URL) {
+        await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/send`, {
+          type: 'credential_renewed',
+          recipient: credential.recipient,
+          data: {
+            credentialId: credential.id,
+            title: credential.title,
+            extensionDuration,
+            newExpiryDate: credential.expiresAt + extensionDuration,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send renewal confirmation:', error);
+    }
+  }
+
+  /**
+   * Log expiration event to analytics
+   */
+  async logExpirationEvent(eventType, credential) {
+    try {
+      console.log(`📊 Logging ${eventType} event for credential ${credential.id}`);
+      
+      if (process.env.ANALYTICS_SERVICE_URL) {
+        await axios.post(`${process.env.ANALYTICS_SERVICE_URL}/events`, {
+          eventType: `credential_${eventType}`,
+          timestamp: new Date().toISOString(),
+          data: {
+            credentialId: credential.id,
+            recipient: credential.recipient,
+            title: credential.title,
+            expiresAt: credential.expiresAt,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Failed to log expiration event:', error);
+    }
+  }
+
+  /**
+   * Update credential status in local database
+   */
+  async updateCredentialStatus(credentialId, status) {
+    try {
+      console.log(`🗄️ Updating credential ${credentialId} status to ${status}`);
+      
+      if (process.env.DATABASE_SERVICE_URL) {
+        await axios.patch(`${process.env.DATABASE_SERVICE_URL}/credentials/${credentialId}`, {
+          status,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update credential status:', error);
+    }
+  }
+
+  /**
+   * Batch update expiration status for multiple credentials
+   */
+  async batchUpdateExpirationStatus() {
+    try {
+      console.log('🔄 Running batch expiration status update...');
+      
+      const rpc = new (require('soroban-client')).Server(this.credentialRegistry.sorobanRpc);
+      
+      // Get all credential IDs (this would need to be implemented based on your storage)
+      const credentialIds = await this.getAllCredentialIds();
+      
+      if (credentialIds.length === 0) return;
+      
+      // Process in batches
+      for (let i = 0; i < credentialIds.length; i += this.expirationConfig.batchSize) {
+        const batch = credentialIds.slice(i, i + this.expirationConfig.batchSize);
+        
+        const result = await rpc.simulateTransaction({
+          source: process.env.ADMIN_PUBLIC_KEY,
+          transaction: new TransactionBuilder(
+            await this.server.loadAccount(process.env.ADMIN_PUBLIC_KEY),
+            { networkPassphrase: this.network }
+          )
+            .addOperation(Operation.invokeContractFunction({
+              contract: this.credentialRegistry.contractId,
+              function: 'batch_update_expiration_status',
+              args: [batch],
+            }))
+            .setTimeout(30)
+            .build(),
+        });
+
+        if (result.results && result.results[0]) {
+          const expiredInBatch = this.parseCredentialIds(result.results[0].value);
+          if (expiredInBatch.length > 0) {
+            console.log(`⚠️ Batch update found ${expiredInBatch.length} newly expired credentials`);
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Failed to batch update expiration status:', error);
+    }
+  }
+
+  /**
+   * Parse credential IDs from contract response
+   */
+  parseCredentialIds(value) {
+    // This would need to be implemented based on the actual response format
+    // from the Soroban contract
+    try {
+      if (Array.isArray(value)) {
+        return value.map(id => parseInt(id.toString()));
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to parse credential IDs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all credential IDs (implementation depends on your storage)
+   */
+  async getAllCredentialIds() {
+    // This would need to be implemented based on how you track credential IDs
+    // For now, return empty array
+    return [];
+  }
+
+  /**
+   * Manually trigger expiration check
+   */
+  async triggerExpirationCheck() {
+    console.log('🔔 Manually triggering credential expiration check...');
+    await this.checkCredentialExpirations();
+  }
+
+  /**
+   * Get credential expiration statistics
+   */
+  async getExpirationStatistics() {
+    try {
+      const expiringSoon = await this.getCredentialsExpiringSoon(this.expirationConfig.warningThreshold);
+      const expired = await this.getExpiredCredentials();
+      
+      return {
+        expiringSoon: {
+          count: expiringSoon.length,
+          credentials: expiringSoon,
+        },
+        expired: {
+          count: expired.length,
+          credentials: expired,
+        },
+        lastCheck: new Date().toISOString(),
+        nextCheck: new Date(Date.now() + this.expirationConfig.checkInterval).toISOString(),
+        config: this.expirationConfig,
+      };
+    } catch (error) {
+      console.error('Failed to get expiration statistics:', error);
+      throw error;
+    }
   }
 }
 

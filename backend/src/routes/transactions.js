@@ -6,6 +6,7 @@ const transactionProcessor = require('../workers/transactionProcessor');
 const transactionEvents = require('../events/transactionEvents');
 const stellarUtils = require('../utils/stellarUtils');
 const logger = require('../utils/logger');
+const { transactionLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -55,7 +56,7 @@ const getTransactionsSchema = Joi.object({
  * POST /api/transactions
  * Create and queue a new transaction
  */
-router.post('/', async (req, res) => {
+router.post('/', transactionLimiter, async (req, res) => {
   try {
     const { error, value } = createTransactionSchema.validate(req.body);
     
