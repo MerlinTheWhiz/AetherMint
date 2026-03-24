@@ -38,12 +38,7 @@
     "redis": "^4.6.8",
     "socket.io": "^4.7.2",
     "mongoose": "^7.5.0",
-    "express-validator": "^7.0.1",
-    "natural": "^6.5.0",
-    "compromise": "^14.10.0",
-    "uuid": "^9.0.0",
-    "cheerio": "^1.0.0-rc.12",
-    "node-fetch": "^3.3.2"
+
   },
   "devDependencies": {
     "@babel/cli": "^7.22.15",
