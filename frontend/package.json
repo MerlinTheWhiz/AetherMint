@@ -24,7 +24,15 @@
     "framer-motion": "^10.16.4",
     "ethers": "^6.7.1",
     "wagmi": "^1.4.0",
-    "connectkit": "^1.7.0"
+    "connectkit": "^1.7.0",
+    "brainflow": "^5.8.0",
+    "tensorflow": "^4.10.0",
+    "@tensorflow/tfjs": "^4.10.0",
+    "ml-matrix": "^6.10.9",
+    "simple-statistics": "^7.8.3",
+    "recharts": "^2.8.0",
+    "socket.io-client": "^4.7.2",
+    "web-bluetooth": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.5.0",
