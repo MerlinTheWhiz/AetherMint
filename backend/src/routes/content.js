@@ -2,8 +2,11 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const ipfsService = require('../services/ipfs');
+const { requirePermission } = require('../middleware/rbac');
+const { PERMISSIONS } = require('../utils/roles');
 const { ipfsAuth, optionalIpfsAuth, validateContentAccess, validateFileSize } = require('../middleware/ipfsAuth');
 const { createIpfsError } = require('../utils/ipfsUtils');
+const { ipfsLimiter } = require('../middleware/rateLimiter');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -24,6 +27,8 @@ const upload = multer({
  * POST /api/content/upload
  */
 router.post('/upload', 
+  requirePermission(PERMISSIONS.CONTENT_CREATE),
+  ipfsLimiter,
   ipfsAuth('upload'),
   upload.single('file'),
   validateFileSize,
@@ -85,6 +90,8 @@ router.post('/upload',
  * POST /api/content/upload/batch
  */
 router.post('/upload/batch',
+  requirePermission(PERMISSIONS.CONTENT_CREATE),
+  ipfsLimiter,
   ipfsAuth('upload'),
   upload.array('files', 10),
   validateFileSize,
@@ -151,7 +158,7 @@ router.post('/upload/batch',
  * GET /api/content/:cid
  */
 router.get('/:cid',
-  optionalIpfsAuth('download'),
+  requirePermission(PERMISSIONS.CONTENT_READ),
   validateContentAccess,
   async (req, res) => {
     try {
@@ -208,7 +215,7 @@ router.get('/:cid',
  * GET /api/content/:cid/metadata
  */
 router.get('/:cid/metadata',
-  optionalIpfsAuth('download'),
+  requirePermission(PERMISSIONS.CONTENT_READ),
   validateContentAccess,
   async (req, res) => {
     try {
@@ -255,7 +262,7 @@ router.get('/:cid/metadata',
  * POST /api/content/:cid/pin
  */
 router.post('/:cid/pin',
-  ipfsAuth('pin'),
+  requirePermission(PERMISSIONS.COURSE_UPDATE), // Pinning requires course update permission
   validateContentAccess,
   async (req, res) => {
     try {
@@ -294,7 +301,7 @@ router.post('/:cid/pin',
  * DELETE /api/content/:cid/pin
  */
 router.delete('/:cid/pin',
-  ipfsAuth('unpin'),
+  requirePermission(PERMISSIONS.COURSE_UPDATE),
   validateContentAccess,
   async (req, res) => {
     try {
@@ -333,7 +340,7 @@ router.delete('/:cid/pin',
  * GET /api/content/node/info
  */
 router.get('/node/info',
-  ipfsAuth('download'),
+  requirePermission(PERMISSIONS.SYSTEM_MANAGE),
   async (req, res) => {
     try {
       const nodeInfo = await ipfsService.getNodeInfo();
@@ -368,7 +375,7 @@ router.get('/node/info',
  * GET /api/content/cache/stats
  */
 router.get('/cache/stats',
-  ipfsAuth('download'),
+  requirePermission(PERMISSIONS.ANALYTICS_READ),
   async (req, res) => {
     try {
       const cacheStats = ipfsService.getCacheStats();
@@ -394,7 +401,7 @@ router.get('/cache/stats',
  * DELETE /api/content/cache
  */
 router.delete('/cache',
-  ipfsAuth('pin'), // Only users with pin permissions can clear cache
+  requirePermission(PERMISSIONS.SYSTEM_MANAGE),
   async (req, res) => {
     try {
       ipfsService.clearCache();

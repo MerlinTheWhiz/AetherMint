@@ -1,19 +1,26 @@
-const { UserRole } = require('../models/User');
+import { UserRole } from '../models/User';
 
 // Role hierarchy for permission checking
-const ROLE_HIERARCHY = {
+export const ROLE_HIERARCHY: Record<string, number> = {
   [UserRole.STUDENT]: 1,
-  [UserRole.EDUCATOR]: 2,
-  [UserRole.ADMIN]: 3
+  [UserRole.INSTRUCTOR]: 2,
+  [UserRole.MODERATOR]: 3,
+  [UserRole.ADMIN]: 4
 };
 
 // Permission constants
-const PERMISSIONS = {
+export const PERMISSIONS = {
   // Course permissions
   COURSE_CREATE: 'course:create',
   COURSE_READ: 'course:read',
   COURSE_UPDATE: 'course:update',
   COURSE_DELETE: 'course:delete',
+  COURSE_ENROLL: 'course:enroll',
+  COURSE_GRADE: 'course:grade',
+  
+  // Progress permissions
+  PROGRESS_TRACK: 'progress:track',
+  CERTIFICATE_VIEW: 'certificate:view',
   
   // Quiz permissions
   QUIZ_CREATE: 'quiz:create',
@@ -21,15 +28,28 @@ const PERMISSIONS = {
   QUIZ_UPDATE: 'quiz:update',
   QUIZ_DELETE: 'quiz:delete',
   
-  // User management permissions
+  // User profile permissions
   USER_READ: 'user:read',
   USER_UPDATE: 'user:update',
   USER_DELETE: 'user:delete',
   USER_ASSIGN_ROLE: 'user:assign_role',
   
-  // Admin permissions
-  ADMIN_PANEL: 'admin:panel',
+  // Content moderation permissions
+  MODERATION_CONTENT: 'moderation:content',
+  MODERATION_USERS: 'moderation:users',
+  MODERATION_DISPUTE: 'moderation:dispute',
+  
+  // Analytics and reporting permissions
+  ANALYTICS_READ: 'analytics:read',
+  REPORT_GENERATE: 'report:generate',
+  
+  // System administration permissions
+  SYSTEM_CONFIG: 'system:config',
   SYSTEM_MANAGE: 'system:manage',
+  
+  // Financial transaction permissions
+  TRANSACTION_READ: 'transaction:read',
+  TRANSACTION_MANAGE: 'transaction:manage',
   
   // Content permissions
   CONTENT_CREATE: 'content:create',
@@ -39,27 +59,43 @@ const PERMISSIONS = {
 };
 
 // Role permissions mapping
-const ROLE_PERMISSIONS = {
+export const ROLE_PERMISSIONS: Record<string, string[]> = {
   [UserRole.STUDENT]: [
     PERMISSIONS.COURSE_READ,
+    PERMISSIONS.COURSE_ENROLL,
+    PERMISSIONS.PROGRESS_TRACK,
+    PERMISSIONS.CERTIFICATE_VIEW,
     PERMISSIONS.QUIZ_READ,
     PERMISSIONS.CONTENT_READ,
     PERMISSIONS.USER_READ
   ],
   
-  [UserRole.EDUCATOR]: [
+  [UserRole.INSTRUCTOR]: [
     PERMISSIONS.COURSE_CREATE,
     PERMISSIONS.COURSE_READ,
     PERMISSIONS.COURSE_UPDATE,
+    PERMISSIONS.COURSE_ENROLL,
+    PERMISSIONS.COURSE_GRADE,
+    PERMISSIONS.PROGRESS_TRACK,
+    PERMISSIONS.CERTIFICATE_VIEW,
     PERMISSIONS.QUIZ_CREATE,
     PERMISSIONS.QUIZ_READ,
     PERMISSIONS.QUIZ_UPDATE,
-    PERMISSIONS.QUIZ_DELETE,
     PERMISSIONS.CONTENT_CREATE,
     PERMISSIONS.CONTENT_READ,
     PERMISSIONS.CONTENT_UPDATE,
-    PERMISSIONS.CONTENT_DELETE,
     PERMISSIONS.USER_READ
+  ],
+  
+  [UserRole.MODERATOR]: [
+    PERMISSIONS.COURSE_READ,
+    PERMISSIONS.QUIZ_READ,
+    PERMISSIONS.CONTENT_READ,
+    PERMISSIONS.MODERATION_CONTENT,
+    PERMISSIONS.MODERATION_USERS,
+    PERMISSIONS.MODERATION_DISPUTE,
+    PERMISSIONS.USER_READ,
+    PERMISSIONS.ANALYTICS_READ
   ],
   
   [UserRole.ADMIN]: [
@@ -70,22 +106,16 @@ const ROLE_PERMISSIONS = {
 
 /**
  * Check if a role has a specific permission
- * @param {string} role - User role
- * @param {string} permission - Permission to check
- * @returns {boolean} - Whether role has permission
  */
-function hasPermission(role, permission) {
+export function hasPermission(role: string, permission: string): boolean {
   const permissions = ROLE_PERMISSIONS[role] || [];
   return permissions.includes(permission);
 }
 
 /**
  * Check if a user role has higher or equal hierarchy level
- * @param {string} userRole - User role
- * @param {string} requiredRole - Required role
- * @returns {boolean} - Whether user has sufficient role level
  */
-function hasRoleLevel(userRole, requiredRole) {
+export function hasRoleLevel(userRole: string, requiredRole: string): boolean {
   const userLevel = ROLE_HIERARCHY[userRole] || 0;
   const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0;
   return userLevel >= requiredLevel;
@@ -93,32 +123,15 @@ function hasRoleLevel(userRole, requiredRole) {
 
 /**
  * Get all permissions for a role
- * @param {string} role - User role
- * @returns {string[]} - Array of permissions
  */
-function getRolePermissions(role) {
+export function getRolePermissions(role: string): string[] {
   return ROLE_PERMISSIONS[role] || [];
 }
 
 /**
  * Check if user can perform action on resource
- * @param {string} userRole - User role
- * @param {string} action - Action (create, read, update, delete)
- * @param {string} resource - Resource type (course, quiz, user, etc.)
- * @returns {boolean} - Whether user can perform action
  */
-function canPerformAction(userRole, action, resource) {
+export function canPerformAction(userRole: string, action: string, resource: string): boolean {
   const permission = `${resource}:${action}`;
   return hasPermission(userRole, permission);
 }
-
-module.exports = {
-  UserRole,
-  ROLE_HIERARCHY,
-  PERMISSIONS,
-  ROLE_PERMISSIONS,
-  hasPermission,
-  hasRoleLevel,
-  getRolePermissions,
-  canPerformAction
-};
