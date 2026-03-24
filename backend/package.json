@@ -16,6 +16,11 @@
     "test:ci": "jest --ci --coverage --watchAll=false",
     "test:verbose": "jest --verbose",
     "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "test:api": "jest --testPathPattern=routes",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:performance": "jest --testPathPattern=performance",
+    "test:federated": "jest --testPathPattern=federatedLearning",
+    "test:all": "npm run test:ci && npm run test:api && npm run test:federated",
     "typecheck": "tsc --noEmit",
     "python:install": "pip install -r requirements.txt",
     "python:setup": "python -m spacy download en_core_web_sm"
