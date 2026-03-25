@@ -1,0 +1,18 @@
+{
+  "name": "analytics-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for managing on-chain analytics storage",
+  "scripts": {
+    "update": "node update_analytics.js",
+    "query": "node query_analytics.js",
+    "query:latest": "node query_analytics.js latest",
+    "query:history": "node query_analytics.js history",
+    "query:growth": "node query_analytics.js growth",
+    "deploy": "./deploy_analytics.sh"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^12.0.0",
+    "pg": "^8.11.0",
+    "dotenv": "^16.0.0"
+  }
+}
