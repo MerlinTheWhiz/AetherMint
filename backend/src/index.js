@@ -28,6 +28,7 @@ const syncRoutes = resolveRoute(require('./routes/syncRoutes'));
 const rbacRoutes = resolveRoute(require('./routes/rbacRoutes'));
 const contentRoutes = require('./routes/content');
 const transactionRoutes = require('./routes/transactions');
+const notificationRoutes = resolveRoute(require('./routes/notificationRoutes'));
 
 // Your branch routes
 const collaborationRoutes = resolveRoute(require('./routes/collaborationRoutes'));
@@ -66,6 +67,7 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/rbac', rbacRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/holographic', holographicRoutes);
 app.use('/api/aco', acoRoutes);

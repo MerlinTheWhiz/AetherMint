@@ -94,3 +94,5 @@ prof/
 .AppleDouble
 .LSOverride
 ehthumbs.db
+
+contracts/target
