@@ -65,6 +65,66 @@ pickle5>=0.0.11
 pytest>=6.2.0
 pytest-cov>=3.0.0
 
+# Recommendation System Dependencies
+surprise>=1.1.0
+implicit>=0.7.0
+lightfm>=1.16.0
+recmetrics>=0.2.0
+recommender-system>=0.1.0
+
+# Data Processing and Feature Engineering
+featuretools>=1.0.0
+category_encoders>=2.6.0
+feature-engine>=1.6.0
+
+# Experiment Tracking and Model Management
+mlflow>=2.8.0
+wandb>=0.16.0
+optuna>=3.4.0
+
+# Data Pipeline and Orchestration
+apache-airflow>=2.7.0
+airflow-providers-redis>=3.0.0
+airflow-providers-postgres>=5.0.0
+celery>=5.3.0
+
+# Real-time Processing and Caching
+redis>=5.0.0
+faiss-cpu>=1.7.0
+annoy>=1.17.0
+elasticsearch>=8.11.0
+
+# A/B Testing and Experimentation
+statsmodels>=0.14.0
+scipy>=1.11.0
+abtest>=0.2.0
+
+# Data Visualization and Analysis
+dash>=2.14.0
+streamlit>=1.28.0
+bokeh>=3.2.0
+
+# API and Web Framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
+
+# Database and Storage
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# Monitoring and Logging
+prometheus-client>=0.19.0
+structlog>=23.2.0
+
+# Testing and Quality
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+black>=23.11.0
+flake8>=6.1.0
+
 # Optional: GPU support for FAISS (uncomment if GPU available)
 # faiss-gpu>=1.7.0
 
