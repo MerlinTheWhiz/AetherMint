@@ -26,7 +26,7 @@ const contentRoutes = require('./routes/content');
 const transactionRoutes = require('./routes/transactions');
 const acoRoutes = require('./routes/aco');
 const federatedLearningRoutes = require('./routes/federatedLearning');
-const quantumRoutes = require('./routes/quantum');
+const swarmLearningRoutes = require('./routes/swarmLearning');
 
 
 // Initialize Express app
@@ -68,7 +68,7 @@ app.use('/api/rbac', rbacRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/aco', acoRoutes);
 app.use('/api/federated-learning', federatedLearningRoutes);
-app.use('/api/quantum', quantumRoutes);
+app.use('/api/swarm-learning', swarmLearningRoutes);
 
 
 // Root endpoint
@@ -126,16 +126,9 @@ const transactionEvents = require('./events/transactionEvents');
 
 const PORT = process.env.PORT || 3001;
 
-async function startServer() {
-  try {
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-}
+
+
+});
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
