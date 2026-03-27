@@ -6,6 +6,9 @@ pub mod credentials;
 mod credentials_test;
 
 pub mod credential_registry;
+pub mod dynamic_nft;
+#[cfg(test)]
+mod dynamic_nft_test;
 
 pub mod progress;
 pub mod event_logger;
@@ -414,7 +417,7 @@ impl AetherMintContract {
         credential_registry::batch_update_expiration_status(&env, credential_ids)
     }
 
-    // ===== Dynamic NFT Credentials =====
+    // ===== Dynamic NFT Functions =====
 
     /// Mint a new dynamic NFT credential
     pub fn mint_dynamic_nft(
@@ -427,7 +430,7 @@ impl AetherMintContract {
         dynamic_nft::mint_dynamic_nft(&env, creator, recipient, base_uri, initial_metadata)
     }
 
-    /// Evolve NFT based on achievement
+    /// Evolve an NFT based on achievement
     pub fn evolve_nft(
         env: Env,
         token_id: u64,
@@ -449,7 +452,7 @@ impl AetherMintContract {
 
     /// Transfer NFT to new owner
     pub fn transfer_nft(env: Env, from: Address, to: Address, token_id: u64) {
-        dynamic_nft::transfer_nft(&env, from, to, token_id);
+        dynamic_nft::transfer_nft(&env, from, to, token_id)
     }
 
     /// Get NFT details
@@ -460,11 +463,6 @@ impl AetherMintContract {
     /// Get all tokens owned by an address
     pub fn get_owner_tokens(env: Env, owner: Address) -> Vec<u64> {
         dynamic_nft::get_owner_tokens(&env, owner)
-    }
-
-    /// Get total token count
-    pub fn get_total_supply(env: Env) -> u64 {
-        dynamic_nft::get_total_supply(&env)
     }
 
     /// Get NFT metadata URI
