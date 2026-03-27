@@ -32,6 +32,9 @@ mod courseMetadata_test;
 #[cfg(test)]
 mod syncCoordination_test;
 pub mod utils;
+pub mod dynamic_nft;
+#[cfg(test)]
+mod dynamic_nft_test;
 
 
 /// Optimized user profile with packed storage
@@ -409,5 +412,78 @@ impl AetherMintContract {
     /// Batch update expiration status for multiple credentials
     pub fn batch_update_expiration_status(env: Env, credential_ids: Vec<u64>) -> Vec<u64> {
         credential_registry::batch_update_expiration_status(&env, credential_ids)
+    }
+
+    // ===== Dynamic NFT Credentials =====
+
+    /// Mint a new dynamic NFT credential
+    pub fn mint_dynamic_nft(
+        env: Env,
+        creator: Address,
+        recipient: Address,
+        base_uri: String,
+        initial_metadata: String,
+    ) -> u64 {
+        dynamic_nft::mint_dynamic_nft(&env, creator, recipient, base_uri, initial_metadata)
+    }
+
+    /// Evolve NFT based on achievement
+    pub fn evolve_nft(
+        env: Env,
+        token_id: u64,
+        achievement_id: u64,
+        new_metadata: String,
+    ) -> bool {
+        dynamic_nft::evolve_nft(&env, token_id, achievement_id, new_metadata)
+    }
+
+    /// Fuse two NFTs to create a new one
+    pub fn fuse_nfts(
+        env: Env,
+        token1_id: u64,
+        token2_id: u64,
+        recipient: Address,
+    ) -> u64 {
+        dynamic_nft::fuse_nfts(&env, token1_id, token2_id, recipient)
+    }
+
+    /// Transfer NFT to new owner
+    pub fn transfer_nft(env: Env, from: Address, to: Address, token_id: u64) {
+        dynamic_nft::transfer_nft(&env, from, to, token_id);
+    }
+
+    /// Get NFT details
+    pub fn get_nft(env: Env, token_id: u64) -> dynamic_nft::DynamicNFT {
+        dynamic_nft::get_nft(&env, token_id)
+    }
+
+    /// Get all tokens owned by an address
+    pub fn get_owner_tokens(env: Env, owner: Address) -> Vec<u64> {
+        dynamic_nft::get_owner_tokens(&env, owner)
+    }
+
+    /// Get total token count
+    pub fn get_total_supply(env: Env) -> u64 {
+        dynamic_nft::get_total_supply(&env)
+    }
+
+    /// Get NFT metadata URI
+    pub fn token_uri(env: Env, token_id: u64) -> String {
+        dynamic_nft::token_uri(&env, token_id)
+    }
+
+    /// Check if NFT exists
+    pub fn nft_exists(env: Env, token_id: u64) -> bool {
+        dynamic_nft::nft_exists(&env, token_id)
+    }
+
+    /// Get owner of NFT
+    pub fn owner_of(env: Env, token_id: u64) -> Address {
+        dynamic_nft::owner_of(&env, token_id)
+    }
+
+    /// Get balance of owner
+    pub fn balance_of(env: Env, owner: Address) -> u64 {
+        dynamic_nft::balance_of(&env, owner)
     }
 }
