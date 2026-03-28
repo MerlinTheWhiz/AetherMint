@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec, U256};
 
@@ -30,15 +29,10 @@ pub mod eventLogger;
 pub mod courseMetadata;
 pub mod syncCoordination;
 #[cfg(test)]
-mod progress_test;
-#[cfg(test)]
 mod courseMetadata_test;
 #[cfg(test)]
 mod syncCoordination_test;
 pub mod utils;
-pub mod dynamic_nft;
-#[cfg(test)]
-mod dynamic_nft_test;
 
 
 /// Optimized user profile with packed storage

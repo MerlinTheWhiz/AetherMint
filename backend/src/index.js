@@ -1,46 +1,3 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const dotenv = require('dotenv');
-const analyticsRoutes = require('./routes/analytics');
-const { startStellarStream } = require('./services/stellarStream');
-const { startScheduledJobs } = require('./services/scheduler');
-
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 4000;
-
-app.use(cors());
-app.use(helmet());
-app.use(express.json());
-
-// Routes
-app.use('/api/analytics', analyticsRoutes);
-
-// Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'UP', timestamp: new Date().toISOString() });
-});
-
-// Setup Error Handling
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
-});
-
-app.listen(PORT, async () => {
-  console.log(`Analytics API running on port ${PORT}`);
-  
-  // Initialize services
-  try {
-    startStellarStream();
-    startScheduledJobs();
-    console.log('Blockchain ingestion and scheduled jobs started.');
-  } catch (error) {
-    console.error('Failed to initialize services:', error);
-  }
-});
 const { createServer } = require('http');
 
 const { connectRedis } = require('./utils/redis');
@@ -82,6 +39,12 @@ const acoRoutes = require('./routes/aco');
 const federatedLearningRoutes = require('./routes/federatedLearning');
 const swarmLearningRoutes = require('./routes/swarmLearning');
 const smartWalletRoutes = resolveRoute(require('./routes/smartWallet'));
+
+// AGI Tutor routes
+const agiTutorRoutes = require('./routes/agiTutorRoutes');
+
+// Analytics routes
+const analyticsRoutes = require('./routes/analytics');
 
 // Initialize Express app
 const app = express();
@@ -128,6 +91,8 @@ app.use('/api/federated-learning', federatedLearningRoutes);
 app.use('/api/swarm-learning', swarmLearningRoutes);
 app.use('/api/smart-wallet', smartWalletRoutes);
 app.use('/api/secure-comm', secureCommRoutes);
+app.use('/api/agi-tutor', agiTutorRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -187,6 +152,7 @@ async function startServer() {
       console.log(`🔮 Holographic Storage API available at /api/holographic`);
       console.log(`🧠 ACO API available at /api/aco`);
       console.log(`🌐 Federated Learning API available at /api/federated-learning`);
+      console.log(`🧠 AGI Tutor API available at /api/agi-tutor`);
       console.log(`🔐 Quantum-Resistant Secure Communication API available at /api/secure-comm`);
       console.log(`🏥 Health check available at /api/health`);
       console.log(`✅ Transaction Queue System initialized successfully`);

@@ -1,6 +1,37 @@
 use soroban_sdk::{contracttype, Address, Env, String, Vec, Symbol, U256};
 use crate::utils::storage::{StorageUtils, EntityType};
 
+/// Contract version for upgradeable pattern
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ContractVersion {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+}
+
+impl ContractVersion {
+    pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+        Self { major, minor, patch }
+    }
+
+    pub fn to_string(&self, env: &Env) -> String {
+        String::from_str(env, &format!("{}.{}.{}", self.major, self.minor, self.patch))
+    }
+
+    pub fn is_compatible(&self, other: &ContractVersion) -> bool {
+        self.major == other.major && self.minor >= other.minor
+    }
+}
+
+/// Upgradeable contract storage keys
+#[contracttype]
+pub enum UpgradeableKey {
+    ContractVersion,
+    ImplementationHash(String), // version -> hash
+    MigrationFlag(u32), // migration version -> bool
+}
+
 /// Dynamic NFT credential with evolution capabilities
 #[contracttype]
 #[derive(Clone)]
@@ -67,6 +98,38 @@ pub struct EvolutionRecord {
     pub ipfs_hash: String,
 }
 
+/// IPFS metadata structure for enhanced verification
+#[contracttype]
+#[derive(Clone)]
+pub struct IPFSMetadata {
+    pub hash: String,
+    pub version: u32,
+    pub content_type: String,
+    pub size_bytes: u64,
+    pub verification_timestamp: u64,
+    pub backup_urls: Vec<String>,
+}
+
+/// Enhanced metadata with IPFS verification
+#[contracttype]
+#[derive(Clone)]
+pub struct EnhancedMetadata {
+    pub ipfs_metadata: IPFSMetadata,
+    pub schema_version: u32,
+    pub attributes: Vec<MetadataAttribute>,
+    pub animation_url: Option<String>,
+    pub external_url: Option<String>,
+}
+
+/// Metadata attribute for NFT properties
+#[contracttype]
+#[derive(Clone)]
+pub struct MetadataAttribute {
+    pub trait_type: String,
+    pub value: String,
+    pub display_type: Option<String>,
+}
+
 /// Achievement requirements for evolution
 #[contracttype]
 #[derive(Clone)]
@@ -95,6 +158,98 @@ pub enum NFTEvent {
     Evolution(u64, EvolutionStage, EvolutionStage), // token_id, from_stage, to_stage
     AchievementUnlocked(u64, u64), // token_id, achievement_id
     Fusion(u64, u64, u64), // token1_id, token2_id, new_token_id
+}
+
+/// Initialize upgradeable contract with version
+pub fn initialize_upgradeable(env: &Env, admin: Address, initial_version: ContractVersion) {
+    if env.storage().instance().has(&UpgradeableKey::ContractVersion) {
+        panic!("Contract already initialized");
+    }
+    
+    env.storage().instance().set(&UpgradeableKey::ContractVersion, &initial_version);
+    env.storage().instance().set(&soroban_sdk::Symbol::new(env, "admin"), &admin);
+}
+
+/// Get current contract version
+pub fn get_contract_version(env: &Env) -> ContractVersion {
+    env.storage().instance()
+        .get(&UpgradeableKey::ContractVersion)
+        .unwrap_or_else(|| ContractVersion::new(1, 0, 0))
+}
+
+/// Upgrade contract to new version
+pub fn upgrade_contract(env: &Env, new_version: ContractVersion, implementation_hash: String) -> bool {
+    let admin: Address = env.storage().instance()
+        .get(&soroban_sdk::Symbol::new(env, "admin"))
+        .unwrap_or_else(|| panic!("Admin not found"));
+    
+    admin.require_auth();
+    
+    let current_version = get_contract_version(env);
+    if !new_version.is_compatible(&current_version) {
+        panic!("Incompatible version upgrade");
+    }
+    
+    env.storage().instance().set(&UpgradeableKey::ContractVersion, &new_version);
+    env.storage().instance().set(
+        &UpgradeableKey::ImplementationHash(new_version.to_string(env)), 
+        &implementation_hash
+    );
+    
+    true
+}
+
+/// Verify IPFS metadata integrity
+pub fn verify_ipfs_metadata(env: &Env, metadata: &IPFSMetadata) -> bool {
+    // Basic hash validation (simplified - in production would use IPFS gateway)
+    if metadata.hash.len() < 46 || !metadata.hash.starts_with("Qm") {
+        return false;
+    }
+    
+    // Check if metadata is not too old (24 hours)
+    let now = env.ledger().timestamp();
+    let max_age = 24 * 60 * 60; // 24 hours in seconds
+    if now > metadata.verification_timestamp + max_age {
+        return false;
+    }
+    
+    // Verify content type
+    let valid_types = ["application/json", "image/svg+xml", "image/png"];
+    if !valid_types.contains(&metadata.content_type.clone().into_str(env)) {
+        return false;
+    }
+    
+    true
+}
+
+/// Store enhanced metadata with IPFS verification
+pub fn store_enhanced_metadata(env: &Env, token_id: u64, metadata: EnhancedMetadata) -> bool {
+    if !verify_ipfs_metadata(env, &metadata.ipfs_metadata) {
+        panic!("Invalid IPFS metadata");
+    }
+    
+    let mut nft: DynamicNFT = env.storage().persistent()
+        .get(&DynamicNFTKey::Token(token_id))
+        .unwrap_or_else(|| panic!("NFT not found"));
+    
+    // Update metadata with verification timestamp
+    nft.metadata_ipfs = metadata.ipfs_metadata.hash.clone();
+    nft.last_evolved = env.ledger().timestamp();
+    
+    // Store enhanced metadata separately for detailed queries
+    env.storage().persistent().set(&DynamicNFTKey::Token(token_id), &nft);
+    env.storage().persistent().set(
+        &soroban_sdk::Symbol::new(env, &format!("enhanced_meta_{}", token_id)), 
+        &metadata
+    );
+    
+    true
+}
+
+/// Get enhanced metadata for NFT
+pub fn get_enhanced_metadata(env: &Env, token_id: u64) -> Option<EnhancedMetadata> {
+    env.storage().persistent()
+        .get(&soroban_sdk::Symbol::new(env, &format!("enhanced_meta_{}", token_id)))
 }
 
 /// Create a new dynamic NFT credential
