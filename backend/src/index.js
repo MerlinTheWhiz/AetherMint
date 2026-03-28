@@ -7,6 +7,18 @@ const { createServer } = require('http');
 const { initWebsocketService } = require('./services/websocketService');
 const { setSyncWebsocketEmitter } = require('./services/syncService');
 
+// Import security middleware
+const {
+  securityPerformanceTracker,
+  checkBlacklist,
+  ddosProtection,
+  botDetection,
+  advancedRestrictions,
+  requestSanitizer
+} = require('./middleware/security');
+const { globalLimiter } = require('./middleware/rateLimiter');
+const { authenticateToken, requireAdmin } = require('./middleware/auth');
+
 // Load environment variables
 dotenv.config();
 
@@ -18,14 +30,12 @@ const quizRoutes = require('./routes/quizRoutes');
 const eventLoggerRoutes = require('./routes/eventLoggerRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const rbacRoutes = require('./routes/rbacRoutes');
-const resolveRoute = (routeModule) => routeModule.default || routeModule;
-const quizRoutes = resolveRoute(require('./routes/quizRoutes'));
-const eventLoggerRoutes = resolveRoute(require('./routes/eventLoggerRoutes'));
-const syncRoutes = resolveRoute(require('./routes/syncRoutes'));
 const contentRoutes = require('./routes/content');
 const transactionRoutes = require('./routes/transactions');
 const acoRoutes = require('./routes/aco');
 const federatedLearningRoutes = require('./routes/federatedLearning');
+const predictionRoutes = require('./routes/prediction');
+const analyticsRoutes = require('./routes/analytics');
 
 
 // Initialize Express app
@@ -67,6 +77,8 @@ app.use('/api/rbac', rbacRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/aco', acoRoutes);
 app.use('/api/federated-learning', federatedLearningRoutes);
+app.use('/api/prediction', predictionRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 
 // Root endpoint
@@ -124,8 +136,17 @@ const transactionEvents = require('./events/transactionEvents');
 
 const PORT = process.env.PORT || 3001;
 
-
-});
+// Start server
+const startServer = async () => {
+  try {
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');

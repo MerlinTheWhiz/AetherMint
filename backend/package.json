@@ -42,7 +42,15 @@
     "pg": "^8.11.3",
     "redis": "^4.6.8",
     "socket.io": "^4.7.2",
-
+    "tensorflow.js": "^4.10.0",
+    "ml-regression": "^5.0.0",
+    "simple-statistics": "^7.8.3",
+    "chart.js": "^4.4.0",
+    "d3": "^7.8.5",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.1"
+  },
   "devDependencies": {
     "@babel/cli": "^7.22.15",
     "@babel/core": "^7.29.0",
@@ -58,6 +66,8 @@
     "@types/sharp": "^0.32.0",
     "@types/geoip-lite": "^1.4.2",
     "@types/supertest": "^2.0.12",
+    "@types/lodash": "^4.14.200",
+    "@types/uuid": "^9.0.6",
     "@typescript-eslint/eslint-plugin": "^6.4.0",
     "@typescript-eslint/parser": "^6.4.0",
     "babel-jest": "^29.7.0",
@@ -78,8 +88,7 @@
     "api",
     "node.js",
     "express",
-    "postgresql",
-
+    "postgresql"
   ],
   "author": "jobbykings",
   "license": "MIT"
