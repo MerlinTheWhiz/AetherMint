@@ -94,6 +94,18 @@ app.use('/api/secure-comm', secureCommRoutes);
 app.use('/api/agi-tutor', agiTutorRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
+// Autonomous Agents routes
+const autonomousAgentsRoutes = require('./routes/autonomousAgents');
+app.use('/api/autonomous-agents', autonomousAgentsRoutes);
+
+// Gamification routes
+const gamificationRoutes = require('./routes/gamification');
+app.use('/api/gamification', gamificationRoutes);
+
+// Bridge routes
+const bridgeRoutes = require('./routes/bridge');
+app.use('/api/bridge', bridgeRoutes);
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
