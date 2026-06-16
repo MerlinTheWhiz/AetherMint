@@ -96,7 +96,7 @@ const redis = new Redis({
   port: parseInt(process.env.REDIS_PORT || '6379'),
   password: process.env.REDIS_PASSWORD
 });
-const secureCommService = new (SecureRealtimeCommunication as any)(websocketService.io, redis);
+const secureCommService = new (SecureRealtimeCommunication as any)(websocketService.getIO(), redis);
 
 setSyncWebsocketEmitter((userId: string, event: string, data: any) => {
   websocketService.emitToUser(userId, event, data);
