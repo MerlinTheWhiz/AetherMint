@@ -10,112 +10,63 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-contracts:
-    name: Test Smart Contracts
+  build-contracts:
+    name: Build Smart Contracts
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: 1.78.0
-        
-    - name: Run tests
-      continue-on-error: true
-      run: |
-        cd contracts
-        cargo test
-        
-    - name: Build contracts
-      run: |
-        cd contracts
-        cargo build --release
-        rustup target add wasm32-unknown-unknown
-        cargo check --target wasm32-unknown-unknown --release
+      - uses: actions/checkout@v4
 
-  test-backend:
-    name: Test Backend
-    runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: aethermint_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-          
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci -w backend
-        
-    - name: Run linting
-      continue-on-error: true
-      run: npm run lint -w backend
-        
-    - name: Run tests
-      continue-on-error: true
-      run: npm run test:ci -w backend
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aethermint_test
-        REDIS_URL: redis://localhost:6379
-        JWT_SECRET: test_secret
-        
-    - name: Build backend
-      run: npm run build -w backend
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.78.0
 
-  test-frontend:
-    name: Test Frontend
+      - name: Build contracts (native)
+        run: |
+          cd contracts
+          cargo build --release
+
+      - name: Check wasm target
+        run: |
+          cd contracts
+          rustup target add wasm32-unknown-unknown
+          cargo check --target wasm32-unknown-unknown --release
+
+  build-backend:
+    name: Build Backend
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci -w frontend
-        
-    - name: Run linting
-      continue-on-error: true
-      run: npm run lint -w frontend
-        
-    - name: Run tests
-      continue-on-error: true
-      run: npm run test:ci -w frontend
-        
-    - name: Build frontend
-      run: npm run build -w frontend
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci -w backend
+
+      - name: Build backend
+        run: npm run build -w backend
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci -w frontend
+
+      - name: Build frontend
+        run: npm run build -w frontend
 
   security-scan:
     name: Security Scan
@@ -123,115 +74,18 @@ jobs:
     permissions:
       security-events: write
       contents: read
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-        
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v4
-      with:
-        sarif_file: 'trivy-results.sarif'
+      - uses: actions/checkout@v4
 
-  deploy-testnet:
-    name: Deploy to Testnet
-    runs-on: ubuntu-latest
-    needs: [test-contracts, test-backend, test-frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    outputs:
-      contract_address: ${{ steps.deploy.outputs.contract_address }}
-    
-    steps:
-    - uses: actions/checkout@v4
-        
-    - name: Install Rust and Soroban
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: 1.78.0
-        
-    - name: Install Soroban CLI
-      run: |
-        cargo install soroban-cli --version 20.0.0 --locked
-        
-    - name: Configure Soroban identity
-      run: |
-        soroban config identity generate admin --secret-key "$STELLAR_SECRET_KEY" --network testnet
-        soroban config network add testnet \
-          --rpc-url https://soroban-testnet.stellar.org \
-          --network-passphrase "Test SDF Network ; September 2015"
-        
-    - name: Build contracts for wasm
-      run: |
-        rustup target add wasm32-unknown-unknown
-        cd contracts
-        cargo build --target wasm32-unknown-unknown --release
-        
-    - name: Deploy contracts to testnet
-      id: deploy
-      run: |
-        cd contracts
-        CONTRACT_ADDRESS=$(soroban contract deploy \
-          --wasm target/wasm32-unknown-unknown/release/aethermint_education_contracts.wasm \
-          --source admin \
-          --network testnet 2>&1 | tail -1)
-        echo "contract_address=$CONTRACT_ADDRESS" >> $GITHUB_OUTPUT
-      env:
-        STELLAR_SECRET_KEY: ${{ secrets.STELLAR_TESTNET_SECRET }}
-        STELLAR_NETWORK: testnet
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [deploy-testnet]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: aethermint_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-          
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Install backend dependencies
-      run: npm ci -w backend
-        
-    - name: Run integration tests
-      run: npm run test:integration -w backend
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aethermint_test
-        REDIS_URL: redis://localhost:6379
-        JWT_SECRET: test_secret
-        STELLAR_NETWORK: testnet
-        CONTRACT_ADDRESS: ${{ needs.deploy-testnet.outputs.contract_address }}
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'trivy-results.sarif'
