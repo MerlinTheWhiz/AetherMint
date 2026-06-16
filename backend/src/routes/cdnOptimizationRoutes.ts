@@ -3,11 +3,11 @@
  * API endpoints for content delivery optimization
  */
 
-import { Router } from "express";
+import { Router, RequestHandler } from "express";
 import { CDNOptimizationController } from "../controllers/cdnOptimizationController";
 import { rateLimit } from "express-rate-limit";
 import { body, param, query } from "express-validator";
-import { validateRequest } from "../middleware/validation";
+import { handleValidationErrors } from "../middleware/validation";
 
 const router: Router = Router();
 const controller = new CDNOptimizationController();
@@ -115,8 +115,8 @@ router.post(
       .isBoolean()
       .withMessage("Prefer low latency must be a boolean"),
   ],
-  validateRequest,
-  controller.optimizeContent.bind(controller),
+  handleValidationErrors,
+  controller.optimizeContent.bind(controller) as RequestHandler,
 );
 
 /**
@@ -142,8 +142,8 @@ router.get(
       .isInt({ min: 1, max: 1000 })
       .withMessage("Limit must be an integer between 1 and 1000"),
   ],
-  validateRequest,
-  controller.getHistory.bind(controller),
+  handleValidationErrors,
+  controller.getHistory.bind(controller) as RequestHandler,
 );
 
 /**
@@ -217,8 +217,8 @@ router.put(
         "Optimization timeout must be an integer between 5 and 300 seconds",
       ),
   ],
-  validateRequest,
-  controller.updateConfiguration.bind(controller),
+  handleValidationErrors,
+  controller.updateConfiguration.bind(controller) as RequestHandler,
 );
 
 /**
@@ -234,8 +234,8 @@ router.delete(
       .isString()
       .withMessage("Request ID must be a string"),
   ],
-  validateRequest,
-  controller.cancelOptimization.bind(controller),
+  handleValidationErrors,
+  controller.cancelOptimization.bind(controller) as RequestHandler,
 );
 
 /**
@@ -265,8 +265,8 @@ router.get(
       .isISO8601()
       .withMessage("End date must be a valid ISO 8601 date"),
   ],
-  validateRequest,
-  controller.getAnalyticsReport.bind(controller),
+  handleValidationErrors,
+  controller.getAnalyticsReport.bind(controller) as RequestHandler,
 );
 
 /**

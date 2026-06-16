@@ -1,7 +1,7 @@
 import express from 'express';
 import secureCommController from '../controllers/secureCommController';
 import { authenticateToken } from '../middleware/auth';
-import { validateRequest } from '../middleware/validation';
+import { handleValidationErrors } from '../middleware/validation';
 import { body, param } from 'express-validator';
 
 const router = express.Router();
@@ -31,7 +31,7 @@ router.post(
     body('userId').notEmpty().withMessage('User ID is required'),
     body('peerId').notEmpty().withMessage('Peer ID is required')
   ],
-  validateRequest,
+  handleValidationErrors,
   secureCommController.establishSharedSecret
 );
 
@@ -47,7 +47,7 @@ router.post(
     body('message').notEmpty().withMessage('Message is required'),
     body('sharedSecret').notEmpty().withMessage('Shared secret is required')
   ],
-  validateRequest,
+  handleValidationErrors,
   secureCommController.encryptMessage
 );
 
@@ -64,7 +64,7 @@ router.post(
     body('nonce').notEmpty().withMessage('Nonce is required'),
     body('sharedSecret').notEmpty().withMessage('Shared secret is required')
   ],
-  validateRequest,
+  handleValidationErrors,
   secureCommController.decryptMessage
 );
 
@@ -80,7 +80,7 @@ router.post(
     body('message').notEmpty().withMessage('Message is required'),
     body('privateKey').notEmpty().withMessage('Private key is required')
   ],
-  validateRequest,
+  handleValidationErrors,
   secureCommController.signMessage
 );
 
@@ -97,7 +97,7 @@ router.post(
     body('signature').notEmpty().withMessage('Signature is required'),
     body('publicKey').notEmpty().withMessage('Public key is required')
   ],
-  validateRequest,
+  handleValidationErrors,
   secureCommController.verifySignature
 );
 
@@ -110,7 +110,7 @@ router.get(
   '/stats/:userId',
   authenticateToken,
   [param('userId').notEmpty().withMessage('User ID is required')],
-  validateRequest,
+  handleValidationErrors,
   secureCommController.getStats
 );
 

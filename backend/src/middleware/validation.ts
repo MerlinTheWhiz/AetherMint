@@ -3,7 +3,7 @@
  * Validation functions for content versions and related operations
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
 import { VersionControlUtils } from '../models/ContentVersion';
 import Joi from 'joi';
@@ -435,7 +435,36 @@ export interface ValidationSchema {
   params?: Joi.ObjectSchema;
 }
 
-export const validateRequest = (schema: ValidationSchema) => {
+type ValidateRequestMiddleware = {
+  (req: Request, res: Response, next: NextFunction): void;
+  (schema: ValidationSchema): RequestHandler;
+};
+
+const isExpressRequest = (value: any): value is Request => {
+  return value && typeof value === 'object' && 'method' in value && 'headers' in value;
+};
+
+export const validateRequest: ValidateRequestMiddleware = ((reqOrSchema: Request | ValidationSchema, res?: Response, next?: NextFunction) => {
+  if (isExpressRequest(reqOrSchema)) {
+    const req = reqOrSchema;
+    if (!res || !next) {
+      throw new Error('Invalid middleware invocation');
+    }
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array(),
+      });
+    }
+
+    return next();
+  }
+
+  const schema = reqOrSchema;
+
   return (req: Request, res: Response, next: NextFunction) => {
     const errors: string[] = [];
 
@@ -466,13 +495,13 @@ export const validateRequest = (schema: ValidationSchema) => {
     if (errors.length > 0) {
       return res.status(400).json({
         error: 'Validation failed',
-        details: errors
+        details: errors,
       });
     }
 
     next();
   };
-};
+}) as ValidateRequestMiddleware;
 
 // Assignment validation schemas
 export const createAssignmentSchema: ValidationSchema = {

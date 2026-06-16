@@ -12,6 +12,9 @@ import logger from '../../utils/logger';
 import { QualityLevel } from './types';
 
 // Set FFmpeg path
+if (!ffmpegStatic) {
+  throw new Error('FFmpeg static binary path not found');
+}
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
 export interface VideoStreamConfig {

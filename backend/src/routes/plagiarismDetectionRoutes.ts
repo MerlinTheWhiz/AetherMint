@@ -3,7 +3,7 @@
  * Defines API endpoints for plagiarism detection operations
  */
 
-import { Router } from "express";
+import { Router, RequestHandler } from "express";
 import { PlagiarismDetectionController } from "../controllers/plagiarismDetectionController";
 import {
   authenticateToken,
@@ -152,7 +152,7 @@ router.post(
   authenticateToken,
   analyzeSubmissionValidation,
   handleValidationErrors,
-  plagiarismController.analyzeSubmission.bind(plagiarismController),
+  plagiarismController.analyzeSubmission.bind(plagiarismController) as RequestHandler,
 );
 
 /**
@@ -165,7 +165,7 @@ router.post(
   authenticateToken,
   batchAnalyzeValidation,
   handleValidationErrors,
-  plagiarismController.batchAnalyze.bind(plagiarismController),
+  plagiarismController.batchAnalyze.bind(plagiarismController) as RequestHandler,
 );
 
 /**
@@ -178,7 +178,7 @@ router.get(
   authenticateToken,
   param("reportId").isUUID().withMessage("Report ID must be a valid UUID"),
   handleValidationErrors,
-  plagiarismController.getReport.bind(plagiarismController),
+  plagiarismController.getReport.bind(plagiarismController) as RequestHandler,
 );
 
 /**
@@ -190,7 +190,7 @@ router.get(
   "/settings",
   authenticateToken,
   requireEducatorOrAdmin,
-  plagiarismController.getSettings.bind(plagiarismController),
+  plagiarismController.getSettings.bind(plagiarismController) as RequestHandler,
 );
 
 /**
@@ -204,7 +204,7 @@ router.put(
   requireAdmin,
   updateSettingsValidation,
   handleValidationErrors,
-  plagiarismController.updateSettings.bind(plagiarismController),
+  plagiarismController.updateSettings.bind(plagiarismController) as RequestHandler,
 );
 
 /**
@@ -229,7 +229,7 @@ router.get(
     .isUUID()
     .withMessage("Institution ID must be a valid UUID"),
   handleValidationErrors,
-  plagiarismController.getAnalytics.bind(plagiarismController),
+  plagiarismController.getAnalytics.bind(plagiarismController) as RequestHandler,
 );
 
 /**
@@ -242,7 +242,7 @@ router.post(
   authenticateToken,
   appealValidation,
   handleValidationErrors,
-  plagiarismController.submitAppeal.bind(plagiarismController),
+  plagiarismController.submitAppeal.bind(plagiarismController) as RequestHandler,
 );
 
 /**
