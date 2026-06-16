@@ -3,7 +3,7 @@
  * API endpoints for smart contract wallet operations
  */
 
-import { Router } from 'express';
+import { Router, RequestHandler } from 'express';
 import * as smartWalletController from '../controllers/smartWalletController';
 import { authenticate } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';

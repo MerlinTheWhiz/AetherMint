@@ -3,7 +3,7 @@
  * Validation functions for content versions and related operations
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
 import { VersionControlUtils } from '../models/ContentVersion';
 import Joi from 'joi';

@@ -3,7 +3,7 @@
  * API endpoints for content delivery optimization
  */
 
-import { Router } from "express";
+import { Router, RequestHandler } from "express";
 import { CDNOptimizationController } from "../controllers/cdnOptimizationController";
 import { rateLimit } from "express-rate-limit";
 import { body, param, query } from "express-validator";
@@ -116,7 +116,7 @@ router.post(
       .withMessage("Prefer low latency must be a boolean"),
   ],
   validateRequest,
-  controller.optimizeContent.bind(controller),
+  controller.optimizeContent.bind(controller) as RequestHandler,
 );
 
 /**
@@ -143,7 +143,7 @@ router.get(
       .withMessage("Limit must be an integer between 1 and 1000"),
   ],
   validateRequest,
-  controller.getHistory.bind(controller),
+  controller.getHistory.bind(controller) as RequestHandler,
 );
 
 /**
@@ -218,7 +218,7 @@ router.put(
       ),
   ],
   validateRequest,
-  controller.updateConfiguration.bind(controller),
+  controller.updateConfiguration.bind(controller) as RequestHandler,
 );
 
 /**
@@ -235,7 +235,7 @@ router.delete(
       .withMessage("Request ID must be a string"),
   ],
   validateRequest,
-  controller.cancelOptimization.bind(controller),
+  controller.cancelOptimization.bind(controller) as RequestHandler,
 );
 
 /**
@@ -266,7 +266,7 @@ router.get(
       .withMessage("End date must be a valid ISO 8601 date"),
   ],
   validateRequest,
-  controller.getAnalyticsReport.bind(controller),
+  controller.getAnalyticsReport.bind(controller) as RequestHandler,
 );
 
 /**
