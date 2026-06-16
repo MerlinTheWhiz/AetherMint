@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { timeLockCredentialService } from '../services/timeLockCredentialService';
 import { authenticateToken } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = express.Router();
 
@@ -58,7 +59,7 @@ router.post(
         message: 'Time-locked credential issued successfully',
       });
     } catch (error: any) {
-      console.error('Error issuing credential:', error);
+      logger.error('Error issuing credential:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to issue credential',
@@ -102,7 +103,7 @@ router.post(
         message: 'Credential released successfully',
       });
     } catch (error: any) {
-      console.error('Error releasing credential:', error);
+      logger.error('Error releasing credential:', error);
       
       if (error.message.includes('not found')) {
         return res.status(404).json({
@@ -173,7 +174,7 @@ router.post(
         message: `Batch release completed: ${successCount}/${results.length} successful`,
       });
     } catch (error: any) {
-      console.error('Error in batch release:', error);
+      logger.error('Error in batch release:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to process batch release',
@@ -229,7 +230,7 @@ router.post(
         message: 'Credential emergency revoked successfully',
       });
     } catch (error: any) {
-      console.error('Error in emergency revoke:', error);
+      logger.error('Error in emergency revoke:', error);
       
       if (error.message.includes('not found')) {
         return res.status(404).json({
@@ -283,7 +284,7 @@ router.post(
         message: 'Release schedule created successfully',
       });
     } catch (error: any) {
-      console.error('Error creating schedule:', error);
+      logger.error('Error creating schedule:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to create schedule',
@@ -320,7 +321,7 @@ router.get(
         count: upcoming.length,
       });
     } catch (error: any) {
-      console.error('Error getting upcoming releases:', error);
+      logger.error('Error getting upcoming releases:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get upcoming releases',
@@ -355,7 +356,7 @@ router.get(
         count: credentials.length,
       });
     } catch (error: any) {
-      console.error('Error getting credentials:', error);
+      logger.error('Error getting credentials:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get credentials',
@@ -390,7 +391,7 @@ router.get(
         count: credentials.length,
       });
     } catch (error: any) {
-      console.error('Error getting credentials:', error);
+      logger.error('Error getting credentials:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get credentials',
@@ -422,7 +423,7 @@ router.get(
         data: auditTrail,
       });
     } catch (error: any) {
-      console.error('Error getting audit trail:', error);
+      logger.error('Error getting audit trail:', error);
       
       if (error.message.includes('not found')) {
         return res.status(404).json({

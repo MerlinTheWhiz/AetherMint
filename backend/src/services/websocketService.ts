@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { createServer } from 'http';
 import { INotification } from '../models/Notification';
+import logger from '../utils/logger';
 const collaborationService = require('./collaborationService').default || require('./collaborationService');
 
 // Define the shape of the notification data that will be sent to the client
@@ -51,12 +52,12 @@ class WebsocketService {
 
   private setupConnectionHandlers(): void {
     this.io.on('connection', (socket: Socket) => {
-      console.log(`User connected: ${socket.id}`);
+      logger.info('User connected', { socketId: socket.id });
 
       socket.on('register-user', (userId: string) => {
         this.socketUsers[socket.id] = userId;
         this.addUserSocket(userId, socket);
-        console.log(`User ${userId} registered with socket ${socket.id}`);
+        logger.info('User registered with socket', { userId, socketId: socket.id });
       });
 
       socket.on('join-classroom', (payload: { classroomId: string; userId: string; name: string; role?: 'student' | 'instructor' | 'moderator' | 'reviewer' }) => {
@@ -113,7 +114,7 @@ class WebsocketService {
       socket.on('disconnect', () => {
         delete this.socketUsers[socket.id];
         this.removeSocket(socket);
-        console.log(`User disconnected: ${socket.id}`);
+        logger.info('User disconnected', { socketId: socket.id });
       });
     });
   }
@@ -180,13 +181,13 @@ class WebsocketService {
           });
         });
 
-        console.log(`Notification sent via websocket to user ${userId}`);
+        logger.info('Notification sent via websocket', { userId });
       } else {
         // Clean up empty socket array
         delete this.userSockets[userId];
       }
     } else {
-      console.log(`No connected sockets found for user ${userId}`);
+      logger.info('No connected sockets found for user', { userId });
     }
   }
 

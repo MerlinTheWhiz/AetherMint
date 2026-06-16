@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { vrfService } from '../services/vrfService';
 import { authenticateToken } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = express.Router();
 
@@ -55,7 +56,7 @@ router.post(
         message: 'VRF request created successfully',
       });
     } catch (error: any) {
-      console.error('Error requesting randomness:', error);
+      logger.error('Error requesting randomness:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to request randomness',
@@ -109,7 +110,7 @@ router.post(
         message: 'Random value generated successfully',
       });
     } catch (error: any) {
-      console.error('Error generating random value:', error);
+      logger.error('Error generating random value:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to generate random value',
@@ -148,7 +149,7 @@ router.get(
         data: request,
       });
     } catch (error: any) {
-      console.error('Error getting request:', error);
+      logger.error('Error getting request:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get request',
@@ -181,7 +182,7 @@ router.get(
         count: requests.length,
       });
     } catch (error: any) {
-      console.error('Error getting requests:', error);
+      logger.error('Error getting requests:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get requests',
@@ -214,7 +215,7 @@ router.get(
         data: beacon,
       });
     } catch (error: any) {
-      console.error('Error getting beacon:', error);
+      logger.error('Error getting beacon:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get beacon',
@@ -240,7 +241,7 @@ router.get(
         data: stats,
       });
     } catch (error: any) {
-      console.error('Error getting stats:', error);
+      logger.error('Error getting stats:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get statistics',
@@ -285,7 +286,7 @@ router.post(
         message: 'Commitment recorded successfully',
       });
     } catch (error: any) {
-      console.error('Error creating commitment:', error);
+      logger.error('Error creating commitment:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to create commitment',
@@ -329,7 +330,7 @@ router.post(
         message: 'Value revealed successfully',
       });
     } catch (error: any) {
-      console.error('Error revealing value:', error);
+      logger.error('Error revealing value:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to reveal value',

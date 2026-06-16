@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Redis } from 'ioredis';
 import crypto from 'crypto';
+import logger from '../utils/logger';
 
 interface VRFRequest {
   requestId: string;
@@ -52,7 +53,7 @@ export class VRFService {
       // Initialize default beacon if none exists
       this.initializeDefaultBeacon();
     } catch (error) {
-      console.warn('Redis not available, using in-memory storage');
+      logger.warn('Redis not available, using in-memory storage');
     }
   }
 

@@ -8,6 +8,7 @@ import {
 } from '../models/Quiz';
 import quizService from './quizService';
 import codeExecutionService from './codeExecutionService';
+import logger from '../utils/logger';
 const plagiarismDetectionService = require('./plagiarismDetectionService').default || require('./plagiarismDetectionService');
 
 /**
@@ -330,7 +331,7 @@ class GradingService {
         const result = await this.gradeSubmission(submission);
         results.push(result);
       } catch (error) {
-        console.error(`Failed to grade submission ${submission.id}:`, error);
+        logger.error(`Failed to grade submission ${submission.id}:`, error);
         // Continue with other submissions
       }
     }

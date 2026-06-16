@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { realTimeTranslationService } from '../services/realTimeTranslationService';
 import { authenticateToken } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = express.Router();
 
@@ -50,7 +51,7 @@ router.post(
         message: `Translation completed in ${result.translationTime}ms`,
       });
     } catch (error: any) {
-      console.error('Translation error:', error);
+      logger.error('Translation error:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Translation failed',
@@ -86,7 +87,7 @@ router.post(
         message: `Batch translation completed: ${results.length} items`,
       });
     } catch (error: any) {
-      console.error('Batch translation error:', error);
+      logger.error('Batch translation error:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Batch translation failed',
@@ -126,7 +127,7 @@ router.post(
         message: 'Subtitle translation completed',
       });
     } catch (error: any) {
-      console.error('Subtitle translation error:', error);
+      logger.error('Subtitle translation error:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Subtitle translation failed',
@@ -166,7 +167,7 @@ router.post(
         message: 'Correction submitted successfully. Quality will be improved.',
       });
     } catch (error: any) {
-      console.error('Correction submission error:', error);
+      logger.error('Correction submission error:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to submit correction',
@@ -198,7 +199,7 @@ router.get(
         data: metrics,
       });
     } catch (error: any) {
-      console.error('Quality metrics error:', error);
+      logger.error('Quality metrics error:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to get quality metrics',

@@ -3,6 +3,7 @@ import { TrendAnalysisService } from './trendAnalysis';
 import { ReportService } from './reportService';
 // @ts-ignore
 import { redisClient } from '../utils/redis';
+import logger from '../utils/logger';
 
 export class AnalyticsService {
   private static CACHE_TTL = 3600; // 1 hour in seconds
@@ -22,7 +23,7 @@ export class AnalyticsService {
         }
       }
     } catch (error) {
-      console.warn('Redis cache miss or error:', error);
+      logger.warn('Redis cache miss or error:', error);
     }
 
     // Calculate fresh data
@@ -39,7 +40,7 @@ export class AnalyticsService {
         await redisClient.setEx(cacheKey, this.CACHE_TTL, JSON.stringify(result));
       }
     } catch (error) {
-      console.warn('Failed to cache analytics:', error);
+      logger.warn('Failed to cache analytics:', error);
     }
 
     return result;

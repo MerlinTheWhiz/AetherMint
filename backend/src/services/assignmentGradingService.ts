@@ -13,6 +13,7 @@ import {
   Submission
 } from '../models/Assignment';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 export interface GradingData {
   submissionId: string;
@@ -241,7 +242,7 @@ export class AssignmentGradingService {
 
     // Start bulk grading in background
     this.processBulkGrading(operationId, bulkData).catch(error => {
-      console.error('Bulk grading failed:', error);
+      logger.error('Bulk grading failed:', error);
     });
 
     return operationId;

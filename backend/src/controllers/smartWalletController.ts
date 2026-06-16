@@ -10,6 +10,7 @@ import { MultiSigService } from '../services/smartWallet/MultiSigService';
 import { SessionKeyService } from '../services/smartWallet/SessionKeyService';
 import { CredentialAutomationService } from '../services/smartWallet/CredentialAutomationService';
 import { WalletActivityMonitor } from '../services/smartWallet/WalletActivityMonitor';
+import logger from '../utils/logger';
 
 // Initialize services
 const accountAbstractionService = new AccountAbstractionService({
@@ -83,7 +84,7 @@ export const createSmartWallet = async (req: Request, res: Response): Promise<vo
       message: 'Smart wallet created successfully',
     });
   } catch (error) {
-    console.error('Create smart wallet error:', error);
+    logger.error('Create smart wallet error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create smart wallet',
@@ -112,7 +113,7 @@ export const executeTransaction = async (req: Request, res: Response): Promise<v
       message: 'Transaction submitted successfully',
     });
   } catch (error) {
-    console.error('Execute transaction error:', error);
+    logger.error('Execute transaction error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to execute transaction',
@@ -145,7 +146,7 @@ export const executeBatchTransactions = async (req: Request, res: Response): Pro
       message: `Batch of ${transactions.length} transactions submitted successfully`,
     });
   } catch (error) {
-    console.error('Execute batch transactions error:', error);
+    logger.error('Execute batch transactions error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to execute batch transactions',
@@ -176,7 +177,7 @@ export const setupSocialRecovery = async (req: Request, res: Response): Promise<
       message: 'Social recovery setup prepared',
     });
   } catch (error) {
-    console.error('Setup social recovery error:', error);
+    logger.error('Setup social recovery error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to setup social recovery',
@@ -204,7 +205,7 @@ export const initiateRecovery = async (req: Request, res: Response): Promise<voi
       message: 'Recovery initiated successfully',
     });
   } catch (error) {
-    console.error('Initiate recovery error:', error);
+    logger.error('Initiate recovery error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to initiate recovery',
@@ -231,7 +232,7 @@ export const supportRecovery = async (req: Request, res: Response): Promise<void
       message: 'Recovery support added',
     });
   } catch (error) {
-    console.error('Support recovery error:', error);
+    logger.error('Support recovery error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to support recovery',
@@ -261,7 +262,7 @@ export const getRecoveryRequest = async (req: Request, res: Response): Promise<v
       data: recoveryRequest,
     });
   } catch (error) {
-    console.error('Get recovery request error:', error);
+    logger.error('Get recovery request error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get recovery request',
@@ -288,7 +289,7 @@ export const setupMultiSig = async (req: Request, res: Response): Promise<void> 
       message: 'Multi-sig setup prepared',
     });
   } catch (error) {
-    console.error('Setup multi-sig error:', error);
+    logger.error('Setup multi-sig error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to setup multi-sig',
@@ -317,7 +318,7 @@ export const proposeTransaction = async (req: Request, res: Response): Promise<v
       message: 'Transaction proposed successfully',
     });
   } catch (error) {
-    console.error('Propose transaction error:', error);
+    logger.error('Propose transaction error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to propose transaction',
@@ -339,7 +340,7 @@ export const getPendingTransactions = async (req: Request, res: Response): Promi
       data: transactions,
     });
   } catch (error) {
-    console.error('Get pending transactions error:', error);
+    logger.error('Get pending transactions error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get pending transactions',
@@ -370,7 +371,7 @@ export const createSessionKey = async (req: Request, res: Response): Promise<voi
       message: 'Session key created successfully',
     });
   } catch (error) {
-    console.error('Create session key error:', error);
+    logger.error('Create session key error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create session key',
@@ -392,7 +393,7 @@ export const getActiveSessionKeys = async (req: Request, res: Response): Promise
       data: sessionKeys,
     });
   } catch (error) {
-    console.error('Get active session keys error:', error);
+    logger.error('Get active session keys error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get active session keys',
@@ -418,7 +419,7 @@ export const getWalletActivity = async (req: Request, res: Response): Promise<vo
       data: activity,
     });
   } catch (error) {
-    console.error('Get wallet activity error:', error);
+    logger.error('Get wallet activity error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get wallet activity',
@@ -444,7 +445,7 @@ export const getActivityAlerts = async (req: Request, res: Response): Promise<vo
       data: alerts,
     });
   } catch (error) {
-    console.error('Get activity alerts error:', error);
+    logger.error('Get activity alerts error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get activity alerts',
@@ -464,7 +465,7 @@ export const getCredentialRenewalStats = async (req: Request, res: Response): Pr
       data: stats,
     });
   } catch (error) {
-    console.error('Get credential renewal stats error:', error);
+    logger.error('Get credential renewal stats error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get renewal stats',
@@ -490,7 +491,7 @@ export const enableAutoRenewal = async (req: Request, res: Response): Promise<vo
       message: 'Auto-renewal enabled',
     });
   } catch (error) {
-    console.error('Enable auto-renewal error:', error);
+    logger.error('Enable auto-renewal error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to enable auto-renewal',

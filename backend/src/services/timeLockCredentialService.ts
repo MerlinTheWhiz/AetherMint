@@ -1,6 +1,7 @@
 import { TimeLockedCredential, ITimeLockedCredential } from '../models/TimeLockedCredential';
 import { v4 as uuidv4 } from 'uuid';
 import { Redis } from 'ioredis';
+import logger from '../utils/logger';
 
 interface IssueCredentialParams {
   issuer: string;
@@ -30,7 +31,7 @@ export class TimeLockCredentialService {
         password: process.env.REDIS_PASSWORD || undefined,
       });
     } catch (error) {
-      console.warn('Redis not available, caching disabled');
+      logger.warn('Redis not available, caching disabled');
     }
   }
 
@@ -279,7 +280,10 @@ export class TimeLockCredentialService {
   private async scheduleReleaseNotification(credential: ITimeLockedCredential): Promise<void> {
     // Implement notification scheduling using node-cron or similar
     // This would integrate with your existing notification system
-    console.log(`Scheduled notification for credential ${credential.credentialId} at ${credential.releaseTime}`);
+    logger.info('Scheduled notification for credential', {
+      credentialId: credential.credentialId,
+      releaseTime: credential.releaseTime,
+    });
   }
 
   /**

@@ -10,6 +10,7 @@ import {
   Submission 
 } from '../models/Assignment';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 export interface NotificationData {
   type: 'assignment_created' | 'assignment_updated' | 'assignment_due_soon' | 'assignment_overdue' | 
@@ -63,7 +64,10 @@ export class AssignmentNotificationService {
       });
     }
 
-    console.log(`Notified ${enrolledStudents.length} students about new assignment: ${assignment.title}`);
+    logger.info('Notified students about new assignment', {
+      count: enrolledStudents.length,
+      title: assignment.title,
+    });
   }
 
   async notifyGradeCreated(grade: Grade): Promise<void> {
@@ -83,7 +87,7 @@ export class AssignmentNotificationService {
       channels: ['email', 'push', 'in_app']
     });
 
-    console.log(`Notified student ${grade.studentId} about grade: ${grade.percentage}%`);
+    logger.info('Notified student about grade', { studentId: grade.studentId, percentage: grade.percentage });
   }
 
   async createNotification(notificationData: NotificationData): Promise<AssignmentNotification> {
@@ -172,20 +176,20 @@ export class AssignmentNotificationService {
           break;
       }
     } catch (error) {
-      console.error(`Failed to send ${channel} notification:`, error);
+      logger.error(`Failed to send ${channel} notification`, error);
     }
   }
 
   private async sendEmailNotification(notification: AssignmentNotification): Promise<void> {
     // In a real implementation, this would use an email service like SendGrid, AWS SES, etc.
     const emailTemplate = await this.generateEmailTemplate(notification);
-    console.log(`Email notification sent to ${notification.recipientId}: ${notification.title}`);
+    logger.info('Email notification sent', { recipientId: notification.recipientId, title: notification.title });
   }
 
   private async sendPushNotification(notification: AssignmentNotification): Promise<void> {
     // In a real implementation, this would use Firebase Cloud Messaging, Apple Push Notification Service, etc.
     const pushNotification = await this.generatePushNotification(notification);
-    console.log(`Push notification sent to ${notification.recipientId}: ${notification.title}`);
+    logger.info('Push notification sent', { recipientId: notification.recipientId, title: notification.title });
   }
 
   private async generateEmailTemplate(notification: AssignmentNotification): Promise<EmailTemplate> {

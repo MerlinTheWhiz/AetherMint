@@ -1,5 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
+import logger from '../utils/logger';
 
 interface Participant {
   id: string;
@@ -40,7 +41,7 @@ export class CollaborationService {
 
   private initializeSocketHandlers() {
     this.io.on('connection', (socket: Socket) => {
-      console.log(`Client connected: ${socket.id}`);
+      logger.info('Client connected', { socketId: socket.id });
 
       socket.on('join-room', this.handleJoinRoom(socket));
       socket.on('leave-room', this.handleLeaveRoom(socket));
@@ -99,7 +100,7 @@ export class CollaborationService {
       // Notify others about the new participant
       socket.to(roomId).emit('participant-joined', participant);
 
-      console.log(`${username} joined room ${roomId}`);
+      logger.info('User joined room', { username, roomId });
     };
   }
 
@@ -119,7 +120,7 @@ export class CollaborationService {
           this.rooms.delete(roomId);
         }
 
-        console.log(`Participant ${socket.id} left room ${roomId}`);
+        logger.info('Participant left room', { socketId: socket.id, roomId });
       }
     };
   }
@@ -278,7 +279,7 @@ export class CollaborationService {
 
   private handleDisconnect(socket: Socket) {
     return () => {
-      console.log(`Client disconnected: ${socket.id}`);
+      logger.info('Client disconnected', { socketId: socket.id });
       
       this.rooms.forEach((room, roomId) => {
         if (room.participants.has(socket.id)) {

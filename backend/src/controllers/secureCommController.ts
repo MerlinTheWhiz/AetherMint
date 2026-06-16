@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import quantumCrypto from '../services/quantumResistantCrypto';
 import { Redis } from 'ioredis';
+import logger from '../utils/logger';
 
 const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
@@ -28,7 +29,7 @@ export class SecureCommController {
         message: 'Quantum-resistant key pair generated'
       });
     } catch (error) {
-      console.error('Error generating key pair:', error);
+      logger.error('Error generating key pair:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to generate key pair'
@@ -69,7 +70,7 @@ export class SecureCommController {
         message: 'Shared secret established'
       });
     } catch (error) {
-      console.error('Error establishing shared secret:', error);
+      logger.error('Error establishing shared secret:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to establish shared secret'
@@ -100,7 +101,7 @@ export class SecureCommController {
         message: 'Message encrypted successfully'
       });
     } catch (error) {
-      console.error('Error encrypting message:', error);
+      logger.error('Error encrypting message:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to encrypt message'
@@ -135,7 +136,7 @@ export class SecureCommController {
         message: 'Message decrypted successfully'
       });
     } catch (error) {
-      console.error('Error decrypting message:', error);
+      logger.error('Error decrypting message:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to decrypt message - may be tampered'
@@ -166,7 +167,7 @@ export class SecureCommController {
         message: 'Message signed successfully'
       });
     } catch (error) {
-      console.error('Error signing message:', error);
+      logger.error('Error signing message:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to sign message'
@@ -201,7 +202,7 @@ export class SecureCommController {
         message: isValid ? 'Signature is valid' : 'Signature is invalid'
       });
     } catch (error) {
-      console.error('Error verifying signature:', error);
+      logger.error('Error verifying signature:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to verify signature'
@@ -231,7 +232,7 @@ export class SecureCommController {
         }
       });
     } catch (error) {
-      console.error('Error getting stats:', error);
+      logger.error('Error getting stats:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get statistics'

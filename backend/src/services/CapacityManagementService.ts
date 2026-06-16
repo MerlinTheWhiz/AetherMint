@@ -13,6 +13,7 @@ import {
 import { EnrollmentService } from './EnrollmentService';
 import { NotificationService } from '../services/NotificationService';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 export interface CapacityRule {
   courseId: string;
@@ -482,7 +483,7 @@ export class CapacityManagementService {
     const errors: string[] = [];
 
     // In production, this would iterate through all courses and remove expired entries
-    console.log('Cleaning up expired waitlist entries...');
+    logger.info('Cleaning up expired waitlist entries');
 
     return { removed, errors };
   }

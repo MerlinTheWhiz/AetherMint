@@ -4,6 +4,7 @@ import { UniversalKnowledgeService } from '../services/universalKnowledgeService
 import { StudentAdaptationService } from '../services/studentAdaptationService';
 import { EmotionalIntelligenceService } from '../services/emotionalIntelligenceService';
 import { CrossDomainIntegrationService } from '../services/crossDomainIntegrationService';
+import logger from '../utils/logger';
 
 export class AGITutorController {
   private agiTutorService: AGITutorService;
@@ -63,7 +64,7 @@ export class AGITutorController {
         }
       });
     } catch (error) {
-      console.error('Error generating learning session:', error);
+      logger.error('Error generating learning session:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to generate learning session'
@@ -108,7 +109,7 @@ export class AGITutorController {
         }
       });
     } catch (error) {
-      console.error('Error processing student response:', error);
+      logger.error('Error processing student response:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to process student response'
@@ -140,7 +141,7 @@ export class AGITutorController {
         data: assessment
       });
     } catch (error) {
-      console.error('Error generating assessment:', error);
+      logger.error('Error generating assessment:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to generate assessment'
@@ -171,7 +172,7 @@ export class AGITutorController {
         data: guidance
       });
     } catch (error) {
-      console.error('Error generating teaching guidance:', error);
+      logger.error('Error generating teaching guidance:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to generate teaching guidance'
@@ -197,7 +198,7 @@ export class AGITutorController {
         data: visualization
       });
     } catch (error) {
-      console.error('Error generating knowledge visualization:', error);
+      logger.error('Error generating knowledge visualization:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to generate knowledge visualization'
@@ -228,7 +229,7 @@ export class AGITutorController {
         }
       });
     } catch (error) {
-      console.error('Error tracking learning progress:', error);
+      logger.error('Error tracking learning progress:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to track learning progress'
@@ -255,7 +256,7 @@ export class AGITutorController {
         data: recommendations
       });
     } catch (error) {
-      console.error('Error generating recommendations:', error);
+      logger.error('Error generating recommendations:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to generate recommendations'
@@ -281,7 +282,7 @@ export class AGITutorController {
         data: support
       });
     } catch (error) {
-      console.error('Error providing emotional support:', error);
+      logger.error('Error providing emotional support:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to provide emotional support'

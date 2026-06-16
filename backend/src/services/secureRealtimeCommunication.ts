@@ -2,6 +2,7 @@ import { Server as SocketServer, Socket } from 'socket.io';
 import { Redis } from 'ioredis';
 import quantumCrypto from './quantumResistantCrypto';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 interface SecureSession {
   sessionId: string;
@@ -53,7 +54,7 @@ export class SecureRealtimeCommunication {
 
   private initializeSocketHandlers(): void {
     this.io.on('connection', async (socket: Socket) => {
-      console.log(`Client connected: ${socket.id}`);
+      logger.info('Client connected', { socketId: socket.id });
 
       // Handle secure session establishment
       socket.on('establish-secure-session', async (data) => {
@@ -138,9 +139,9 @@ export class SecureRealtimeCommunication {
         expiresAt: session.expiresAt
       });
 
-      console.log(`Secure session established for user: ${userId}`);
+      logger.info('Secure session established', { userId });
     } catch (error) {
-      console.error('Error establishing secure session:', error);
+      logger.error('Error establishing secure session', error);
       socket.emit('error', { message: 'Failed to establish secure session' });
     }
   }
@@ -193,7 +194,7 @@ export class SecureRealtimeCommunication {
 
       socket.emit('message-delivered', { messageId: data.messageId });
     } catch (error) {
-      console.error('Error handling encrypted message:', error);
+      logger.error('Error handling encrypted message', error);
       socket.emit('error', { message: 'Failed to deliver message' });
     }
   }
@@ -246,9 +247,9 @@ export class SecureRealtimeCommunication {
         participants: [data.userId]
       });
 
-      console.log(`Secure room created: ${roomId}`);
+      logger.info('Secure room created', { roomId });
     } catch (error) {
-      console.error('Error creating secure room:', error);
+      logger.error('Error creating secure room', error);
       socket.emit('error', { message: 'Failed to create secure room' });
     }
   }
@@ -311,9 +312,9 @@ export class SecureRealtimeCommunication {
         participants: participantIds
       });
 
-      console.log(`User ${data.userId} joined room: ${data.roomId}`);
+      logger.info('User joined secure room', { userId: data.userId, roomId: data.roomId });
     } catch (error) {
-      console.error('Error joining secure room:', error);
+      logger.error('Error joining secure room', error);
       socket.emit('error', { message: error.message || 'Failed to join room' });
     }
   }
@@ -357,7 +358,7 @@ export class SecureRealtimeCommunication {
         }
       }
     } catch (error) {
-      console.error('Error handling WebRTC signaling:', error);
+      logger.error('Error handling WebRTC signaling', error);
       socket.emit('error', { message: 'Failed to process WebRTC signal' });
     }
   }
@@ -390,9 +391,9 @@ export class SecureRealtimeCommunication {
         sessionKey: newSessionKey
       });
 
-      console.log(`Session key rotated for user: ${data.userId}`);
+      logger.info('Session key rotated', { userId: data.userId });
     } catch (error) {
-      console.error('Error rotating session key:', error);
+      logger.error('Error rotating session key', error);
       socket.emit('error', { message: 'Failed to rotate session key' });
     }
   }
@@ -425,7 +426,7 @@ export class SecureRealtimeCommunication {
         }
       });
 
-      console.log(`User disconnected: ${session.userId}`);
+      logger.info('User disconnected', { userId: session.userId });
     }
   }
 

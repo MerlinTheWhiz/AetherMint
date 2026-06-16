@@ -8,6 +8,7 @@ const StellarSdk = require('@stellar/stellar-sdk');
 const Server = (StellarSdk as any).Server || class { constructor(_url: string) {} };
 import { StellarPayment, StellarAsset, StellarPaymentSettings, PaymentValidation } from '../models/Payment';
 import { PaymentStatus, PaymentMethod } from '../models/Enrollment';
+import logger from '../utils/logger';
 
 export class StellarPaymentService {
   private server: any;
@@ -61,7 +62,7 @@ export class StellarPaymentService {
         paymentId
       };
     } catch (error) {
-      console.error('Error creating Stellar payment transaction:', error);
+      logger.error('Error creating Stellar payment transaction:', error);
       throw new Error(`Failed to create payment transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -89,7 +90,7 @@ export class StellarPaymentService {
 
       return payment;
     } catch (error) {
-      console.error('Error submitting Stellar transaction:', error);
+      logger.error('Error submitting Stellar transaction:', error);
       throw new Error(`Failed to submit transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -167,7 +168,7 @@ export class StellarPaymentService {
 
       return latestLedger.records[0].sequence - transaction.ledger;
     } catch (error) {
-      console.error('Error getting transaction confirmations:', error);
+      logger.error('Error getting transaction confirmations:', error);
       return 0;
     }
   }
@@ -214,7 +215,7 @@ export class StellarPaymentService {
         issuer: balance.asset_issuer
       }));
     } catch (error) {
-      console.error('Error getting account balance:', error);
+      logger.error('Error getting account balance:', error);
       throw new Error(`Failed to get account balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -307,7 +308,7 @@ export class StellarPaymentService {
     try {
       return await this.server.transactions().transaction(transactionHash).call();
     } catch (error) {
-      console.error('Error getting transaction details:', error);
+      logger.error('Error getting transaction details:', error);
       return null;
     }
   }
@@ -360,7 +361,7 @@ export class StellarPaymentService {
         refundId
       };
     } catch (error) {
-      console.error('Error creating Stellar refund transaction:', error);
+      logger.error('Error creating Stellar refund transaction:', error);
       throw new Error(`Failed to create refund transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -395,7 +396,7 @@ export class StellarPaymentService {
         cursor: result.records.length > 0 ? result.records[result.records.length - 1].paging_token : undefined
       };
     } catch (error) {
-      console.error('Error getting payment history:', error);
+      logger.error('Error getting payment history:', error);
       throw new Error(`Failed to get payment history: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

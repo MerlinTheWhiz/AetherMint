@@ -1,12 +1,21 @@
 /**
  * Logger Utility
- * Centralized logging service using Winston
+ * Centralized structured logging service using Winston.
  */
 
-import winston from 'winston';
+import { AsyncLocalStorage } from 'async_hooks';
+import fs from 'fs';
 import path from 'path';
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
-const levels = {
+type RequestContext = Record<string, unknown> & {
+  requestId?: string;
+};
+
+type LogLevel = 'error' | 'warn' | 'info' | 'http' | 'debug';
+
+const levels: Record<LogLevel, number> = {
   error: 0,
   warn: 1,
   info: 2,
@@ -14,42 +23,165 @@ const levels = {
   debug: 4,
 };
 
-const colors = {
-  error: 'red',
-  warn: 'yellow',
-  info: 'green',
-  http: 'magenta',
-  debug: 'white',
+const requestContextStorage = new AsyncLocalStorage<RequestContext>();
+const logDirectory = path.join(process.cwd(), 'logs');
+const logLevel = process.env.LOG_LEVEL || 'info';
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const sensitiveKeyPattern = /(password|passphrase|token|accessToken|refreshToken|secret|apiKey|authorization|cookie|session)/i;
+
+fs.mkdirSync(logDirectory, { recursive: true });
+
+const serializeError = (error: Error) => ({
+  name: error.name,
+  message: error.message,
+  stack: isDevelopment ? error.stack : undefined,
+  cause: (error as Error & { cause?: unknown }).cause instanceof Error
+    ? serializeError((error as Error & { cause?: Error }).cause as Error)
+    : (error as Error & { cause?: unknown }).cause,
+});
+
+const redactString = (value: string) => value
+  .replace(/(Bearer\s+)[A-Za-z0-9\-._~+/]+=*/gi, '$1[REDACTED]')
+  .replace(/(["']?(?:password|passphrase|secret|token|accessToken|refreshToken|apiKey|authorization|cookie|session)["']?\s*[:=]\s*["'])([^"']+)(["'])/gi, '$1[REDACTED]$3');
+
+const redactValue = (value: unknown, seen = new WeakSet<object>()): unknown => {
+  if (typeof value === 'string') {
+    return redactString(value);
+  }
+
+  if (value === null || value === undefined || typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return value;
+  }
+
+  if (value instanceof Error) {
+    return serializeError(value);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Buffer.isBuffer(value)) {
+    return `[Buffer length=${value.length}]`;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactValue(item, seen));
+  }
+
+  if (typeof value === 'object') {
+    if (seen.has(value)) {
+      return '[Circular]';
+    }
+
+    seen.add(value);
+
+    const output: Record<string, unknown> = {};
+
+    for (const [key, nestedValue] of Object.entries(value)) {
+      if (sensitiveKeyPattern.test(key)) {
+        output[key] = '[REDACTED]';
+        continue;
+      }
+
+      output[key] = redactValue(nestedValue, seen);
+    }
+
+    return output;
+  }
+
+  return value;
 };
 
-winston.addColors(colors);
+const mergeMeta = (meta: unknown[]): Record<string, unknown> => {
+  const normalized: Record<string, unknown> = {};
+
+  meta.forEach((item, index) => {
+    if (item === undefined) {
+      return;
+    }
+
+    if (item instanceof Error) {
+      normalized.error = serializeError(item);
+      return;
+    }
+
+    const redacted = redactValue(item);
+
+    if (redacted && typeof redacted === 'object' && !Array.isArray(redacted)) {
+      Object.assign(normalized, redacted);
+      return;
+    }
+
+    normalized[`meta${index}`] = redacted;
+  });
+
+  return normalized;
+};
+
+const buildLoggerEntry = (level: LogLevel, message: unknown, meta: unknown[]) => {
+  const context = requestContextStorage.getStore();
+  const entry: Record<string, unknown> = {
+    level,
+    message: redactValue(message),
+    ...mergeMeta(meta),
+  };
+
+  if (context) {
+    Object.assign(entry, redactValue(context));
+  }
+
+  return entry;
+};
 
 const format = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-  winston.format.printf((info) =>
-    `${info.timestamp} ${info.level}: ${info.message}`
-  )
+  winston.format.timestamp(),
+  winston.format.errors({ stack: true }),
+  winston.format.json(),
 );
 
 const transports = [
-  // Console transport
   new winston.transports.Console(),
-  // Error log file
-  new winston.transports.File({
-    filename: path.join('logs', 'error.log'),
-    level: 'error',
+  new DailyRotateFile({
+    filename: path.join(logDirectory, 'combined-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    maxFiles: '14d',
+    zippedArchive: true,
   }),
-  // Combined log file
-  new winston.transports.File({
-    filename: path.join('logs', 'all.log'),
+  new DailyRotateFile({
+    filename: path.join(logDirectory, 'error-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    maxFiles: '14d',
+    zippedArchive: true,
+    level: 'error',
   }),
 ];
 
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'debug',
+const baseLogger = winston.createLogger({
+  level: logLevel,
   levels,
   format,
   transports,
 });
+
+const createLoggerMethod = (level: LogLevel) => (message: unknown, ...meta: unknown[]) => {
+  baseLogger.log(buildLoggerEntry(level, message, meta));
+};
+
+const logger = {
+  error: createLoggerMethod('error'),
+  warn: createLoggerMethod('warn'),
+  info: createLoggerMethod('info'),
+  http: createLoggerMethod('http'),
+  debug: createLoggerMethod('debug'),
+  log: (level: LogLevel, message: unknown, ...meta: unknown[]) => {
+    baseLogger.log(buildLoggerEntry(level, message, meta));
+  },
+};
+
+export const runWithRequestContext = <T>(context: RequestContext, callback: () => T): T =>
+  requestContextStorage.run(context, callback);
+
+export const getRequestContext = (): RequestContext | undefined => requestContextStorage.getStore();
 
 export default logger;

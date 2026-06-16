@@ -9,6 +9,7 @@ import AWS from 'aws-sdk';
 import sharp from 'sharp';
 import fs from 'fs/promises';
 import path from 'path';
+import logger from '../utils/logger';
 
 export interface UploadOptions {
   maxFileSize?: number;
@@ -57,7 +58,7 @@ export class FileUploadService {
         
         uploadedFiles.push(uploadedFile);
       } catch (error) {
-        console.error(`Error uploading file ${file.originalname}:`, error);
+        logger.error(`Error uploading file ${file.originalname}:`, error);
         throw new Error(`Failed to upload file: ${file.originalname}`);
       }
     }
@@ -92,7 +93,7 @@ export class FileUploadService {
         }).promise();
       }
     } catch (error) {
-      console.error('Error deleting file:', error);
+      logger.error('Error deleting file:', error);
       throw new Error('Failed to delete file');
     }
   }
@@ -112,7 +113,7 @@ export class FileUploadService {
 
       return response.Body as Buffer;
     } catch (error) {
-      console.error('Error getting file buffer:', error);
+      logger.error('Error getting file buffer:', error);
       throw new Error('Failed to retrieve file');
     }
   }
@@ -151,7 +152,7 @@ export class FileUploadService {
 
       return `https://${this.bucketName}.s3.amazonaws.com/${thumbnailKey}`;
     } catch (error) {
-      console.error('Error generating thumbnail:', error);
+      logger.error('Error generating thumbnail:', error);
       return null;
     }
   }
@@ -317,7 +318,7 @@ export class FileUploadService {
         uploadedAt: new Date()
       };
     } catch (error) {
-      console.error('Error uploading to S3:', error);
+      logger.error('Error uploading to S3:', error);
       throw new Error('Failed to upload file to storage');
     }
   }
@@ -380,7 +381,7 @@ export class FileUploadService {
         lastModified: headObject.LastModified || new Date()
       };
     } catch (error) {
-      console.error('Error getting file info:', error);
+      logger.error('Error getting file info:', error);
       return null;
     }
   }

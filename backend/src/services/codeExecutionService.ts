@@ -5,6 +5,7 @@
 
 import { CodeSubmission, CodeTestResult } from "../models/Assignment";
 import { v4 as uuidv4 } from "uuid";
+import logger from '../utils/logger';
 
 export interface ExecutionRequest {
   code: string;
@@ -455,7 +456,7 @@ export class CodeExecutionService {
 
   async cleanupResources(): Promise<void> {
     // In a real implementation, this would clean up Docker containers and temporary files
-    console.log("Cleaning up execution resources...");
+    logger.info('Cleaning up execution resources');
   }
 }
 

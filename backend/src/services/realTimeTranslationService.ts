@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Redis } from 'ioredis';
 import crypto from 'crypto';
+import logger from '../utils/logger';
 
 export interface TranslationRequest {
   text: string;
@@ -66,7 +67,7 @@ export class RealTimeTranslationService {
         password: process.env.REDIS_PASSWORD || undefined,
       });
     } catch (error) {
-      console.warn('Redis not available, caching disabled');
+      logger.warn('Redis not available, caching disabled');
       this.cacheEnabled = false;
     }
   }
@@ -146,7 +147,7 @@ export class RealTimeTranslationService {
         isCached: false,
       };
     } catch (error: any) {
-      console.error('Translation error:', error.message);
+      logger.error('Translation error:', error.message);
       
       // Fallback to alternative provider or cached similar translations
       const fallbackTranslation = await this.getFallbackTranslation(request);

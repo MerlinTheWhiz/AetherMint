@@ -19,6 +19,7 @@ import {
   EnrollmentCapacity
 } from '../models/Enrollment';
 import { UserRole } from '../models/User';
+import logger from '../utils/logger';
 
 export class EnrollmentController {
   private enrollmentService: EnrollmentService;
@@ -71,7 +72,7 @@ export class EnrollmentController {
         }
       });
     } catch (error) {
-      console.error('Error getting user enrollments:', error);
+      logger.error('Error getting user enrollments:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve enrollments',
@@ -111,7 +112,7 @@ export class EnrollmentController {
         data: enrollment
       });
     } catch (error) {
-      console.error('Error getting enrollment:', error);
+      logger.error('Error getting enrollment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve enrollment',
@@ -208,7 +209,7 @@ export class EnrollmentController {
         });
       }
     } catch (error) {
-      console.error('Error creating enrollment:', error);
+      logger.error('Error creating enrollment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to create enrollment',
@@ -250,7 +251,7 @@ export class EnrollmentController {
         data: updatedEnrollment
       });
     } catch (error) {
-      console.error('Error updating enrollment:', error);
+      logger.error('Error updating enrollment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to update enrollment',
@@ -313,7 +314,7 @@ export class EnrollmentController {
         data: cancelledEnrollment
       });
     } catch (error) {
-      console.error('Error cancelling enrollment:', error);
+      logger.error('Error cancelling enrollment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to cancel enrollment',
@@ -347,7 +348,7 @@ export class EnrollmentController {
         data: enrollment
       });
     } catch (error) {
-      console.error('Error completing enrollment:', error);
+      logger.error('Error completing enrollment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to complete enrollment',
@@ -386,7 +387,7 @@ export class EnrollmentController {
         data: progress
       });
     } catch (error) {
-      console.error('Error getting enrollment progress:', error);
+      logger.error('Error getting enrollment progress:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get enrollment progress',
@@ -426,7 +427,7 @@ export class EnrollmentController {
         data: updatedEnrollment
       });
     } catch (error) {
-      console.error('Error updating enrollment progress:', error);
+      logger.error('Error updating enrollment progress:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to update enrollment progress',
@@ -467,7 +468,7 @@ export class EnrollmentController {
         }
       });
     } catch (error) {
-      console.error('Error getting course enrollments:', error);
+      logger.error('Error getting course enrollments:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve course enrollments',
@@ -490,7 +491,7 @@ export class EnrollmentController {
         data: certificate
       });
     } catch (error) {
-      console.error('Error issuing certificate:', error);
+      logger.error('Error issuing certificate:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to issue certificate',
@@ -513,7 +514,7 @@ export class EnrollmentController {
         data: waitlist
       });
     } catch (error) {
-      console.error('Error getting course waitlist:', error);
+      logger.error('Error getting course waitlist:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve course waitlist',
@@ -549,7 +550,7 @@ export class EnrollmentController {
         }
       });
     } catch (error) {
-      console.error('Error adding to waitlist:', error);
+      logger.error('Error adding to waitlist:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to add to waitlist',
@@ -573,7 +574,7 @@ export class EnrollmentController {
         message: 'Removed from waitlist'
       });
     } catch (error) {
-      console.error('Error removing from waitlist:', error);
+      logger.error('Error removing from waitlist:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to remove from waitlist',
@@ -596,7 +597,7 @@ export class EnrollmentController {
         data: analytics
       });
     } catch (error) {
-      console.error('Error getting user enrollment analytics:', error);
+      logger.error('Error getting user enrollment analytics:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve user enrollment analytics',
@@ -619,7 +620,7 @@ export class EnrollmentController {
         data: analytics
       });
     } catch (error) {
-      console.error('Error getting course enrollment analytics:', error);
+      logger.error('Error getting course enrollment analytics:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve course enrollment analytics',
@@ -640,7 +641,7 @@ export class EnrollmentController {
         data: analytics
       });
     } catch (error) {
-      console.error('Error getting global enrollment analytics:', error);
+      logger.error('Error getting global enrollment analytics:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve global enrollment analytics',
@@ -663,7 +664,7 @@ export class EnrollmentController {
         data: result
       });
     } catch (error) {
-      console.error('Error performing bulk enrollment operations:', error);
+      logger.error('Error performing bulk enrollment operations:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to perform bulk enrollment operations',
@@ -686,7 +687,7 @@ export class EnrollmentController {
         data: capacity
       });
     } catch (error) {
-      console.error('Error getting course capacity:', error);
+      logger.error('Error getting course capacity:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve course capacity',
@@ -710,7 +711,7 @@ export class EnrollmentController {
         data: validation
       });
     } catch (error) {
-      console.error('Error validating prerequisites:', error);
+      logger.error('Error validating prerequisites:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to validate prerequisites',
@@ -743,7 +744,7 @@ export class EnrollmentController {
         data: history
       });
     } catch (error) {
-      console.error('Error getting user enrollment history:', error);
+      logger.error('Error getting user enrollment history:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve user enrollment history',
@@ -783,7 +784,7 @@ export class EnrollmentController {
         data: renewedEnrollment
       });
     } catch (error) {
-      console.error('Error renewing enrollment:', error);
+      logger.error('Error renewing enrollment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to renew enrollment',
@@ -807,7 +808,7 @@ export class EnrollmentController {
       
       res.send(exportData);
     } catch (error) {
-      console.error('Error exporting course enrollments:', error);
+      logger.error('Error exporting course enrollments:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to export course enrollments',
