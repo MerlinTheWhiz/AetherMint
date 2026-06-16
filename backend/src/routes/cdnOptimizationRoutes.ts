@@ -7,7 +7,7 @@ import { Router, RequestHandler } from "express";
 import { CDNOptimizationController } from "../controllers/cdnOptimizationController";
 import { rateLimit } from "express-rate-limit";
 import { body, param, query } from "express-validator";
-import { validateRequest } from "../middleware/validation";
+import { handleValidationErrors } from "../middleware/validation";
 
 const router: Router = Router();
 const controller = new CDNOptimizationController();

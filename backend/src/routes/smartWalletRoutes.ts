@@ -6,7 +6,7 @@
 import { Router, RequestHandler } from 'express';
 import * as smartWalletController from '../controllers/smartWalletController';
 import { authenticate } from '../middleware/auth';
-import { validateRequest } from '../middleware/validation';
+import { handleValidationErrors } from '../middleware/validation';
 import { body, param, query } from 'express-validator';
 
 const router = Router();
@@ -26,7 +26,7 @@ router.post(
     body('guardians').optional().isArray().withMessage('Guardians must be an array'),
     body('guardians.*.address').optional().isEthereumAddress().withMessage('Invalid guardian address'),
     body('threshold').optional().isInt({ min: 1 }).withMessage('Threshold must be at least 1'),
-    validateRequest,
+    handleValidationErrors,
   ],
   smartWalletController.createSmartWallet
 );
@@ -144,7 +144,7 @@ router.post(
     body('signers').isArray({ min: 1 }).withMessage('At least one signer is required'),
     body('signers.*').isEthereumAddress().withMessage('Invalid signer address'),
     body('threshold').isInt({ min: 1 }).withMessage('Threshold must be at least 1'),
-    validateRequest,
+    handleValidationErrors,
   ],
   smartWalletController.setupMultiSig
 );
@@ -162,7 +162,7 @@ router.post(
     body('value').isString().withMessage('Value must be a string'),
     body('data').isString().withMessage('Data must be a string'),
     body('proposer').isEthereumAddress().withMessage('Invalid proposer address'),
-    validateRequest,
+    handleValidationErrors,
   ],
   smartWalletController.proposeTransaction
 );
@@ -264,7 +264,7 @@ router.post(
   [
     body('credentialId').isString().withMessage('Credential ID is required'),
     body('renewalThreshold').isInt({ min: 1 }).withMessage('Renewal threshold must be at least 1'),
-    validateRequest,
+    handleValidationErrors,
   ],
   smartWalletController.enableAutoRenewal
 );

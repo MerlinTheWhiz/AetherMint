@@ -1,7 +1,7 @@
 import express from 'express';
 import secureCommController from '../controllers/secureCommController';
 import { authenticateToken } from '../middleware/auth';
-import { validateRequest } from '../middleware/validation';
+import { handleValidationErrors } from '../middleware/validation';
 import { body, param } from 'express-validator';
 
 const router = express.Router();

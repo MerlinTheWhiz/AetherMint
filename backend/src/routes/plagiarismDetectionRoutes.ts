@@ -165,7 +165,7 @@ router.post(
   authenticateToken,
   batchAnalyzeValidation,
   handleValidationErrors,
-  plagiarismController.batchAnalyze.bind(plagiarismController),
+  plagiarismController.batchAnalyze.bind(plagiarismController) as RequestHandler,
 );
 
 /**
