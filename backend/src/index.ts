@@ -1,27 +1,37 @@
-const { createServer } = require('http');
+import express from 'express';
+import { createServer } from 'http';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import helmet from 'helmet';
+import { connectRedis } from './utils/redis';
+import { initWebsocketService } from './services/websocketService';
+import { setSyncWebsocketEmitter } from './services/syncService';
+import { initCollaborationService } from './services/initCollaboration';
+import { Redis } from 'ioredis';
+// @ts-ignore
+import SecureRealtimeCommunication from './services/secureRealtimeCommunication';
 
-const { connectRedis } = require('./utils/redis');
-const { initWebsocketService } = require('./services/websocketService');
-const { setSyncWebsocketEmitter } = require('./services/syncService');
-const { initCollaborationService } = require('./services/initCollaboration');
-const { Redis } = require('ioredis');
-const SecureRealtimeCommunication = require('./services/secureRealtimeCommunication').default;
-
-const transactionQueue = require('./services/transactionQueue');
-const transactionProcessor = require('./workers/transactionProcessor');
-const transactionEvents = require('./events/transactionEvents');
+// @ts-ignore
+import * as transactionQueue from './services/transactionQueue';
+// @ts-ignore
+import * as transactionProcessor from './workers/transactionProcessor';
+// @ts-ignore
+import * as transactionEvents from './events/transactionEvents';
 
 // Import security middleware
-const {
+import {
   securityPerformanceTracker,
   checkBlacklist,
   ddosProtection,
   botDetection,
   advancedRestrictions,
   requestSanitizer
-} = require('./middleware/security');
-const { globalLimiter } = require('./middleware/rateLimiter');
-const { authenticateToken, requireAdmin } = require('./middleware/auth');
+} from './middleware/security';
+import { detectSuspiciousPatterns } from './middleware/sanitizer';
+// @ts-ignore
+import { globalLimiter } from './middleware/rateLimiter';
+// @ts-ignore
+// import { authenticateToken, requireAdmin } from './middleware/auth'; // Not used in index.js but imported
 
 // Load environment variables
 dotenv.config();
@@ -30,32 +40,48 @@ dotenv.config();
 connectRedis();
 
 // Helper for default-exported route modules
-const resolveRoute = (routeModule) => routeModule.default || routeModule;
+const resolveRoute = (routeModule: any) => routeModule.default || routeModule;
 
 // Import routes
+// @ts-ignore
 const quizRoutes = resolveRoute(require('./routes/quizRoutes'));
+// @ts-ignore
 const eventLoggerRoutes = resolveRoute(require('./routes/eventLoggerRoutes'));
+// @ts-ignore
 const syncRoutes = resolveRoute(require('./routes/syncRoutes'));
+// @ts-ignore
 const rbacRoutes = resolveRoute(require('./routes/rbacRoutes'));
+// @ts-ignore
 const contentRoutes = require('./routes/content');
+// @ts-ignore
 const transactionRoutes = require('./routes/transactions');
+// @ts-ignore
 const notificationRoutes = resolveRoute(require('./routes/notificationRoutes'));
 
 // Your branch routes
+// @ts-ignore
 const collaborationRoutes = resolveRoute(require('./routes/collaborationRoutes'));
+// @ts-ignore
 const holographicRoutes = resolveRoute(require('./routes/holographicRoutes'));
+// @ts-ignore
 const secureCommRoutes = resolveRoute(require('./routes/secureCommRoutes'));
 
 // Upstream routes
+// @ts-ignore
 const acoRoutes = require('./routes/aco');
+// @ts-ignore
 const federatedLearningRoutes = require('./routes/federatedLearning');
+// @ts-ignore
 const swarmLearningRoutes = require('./routes/swarmLearning');
+// @ts-ignore
 const smartWalletRoutes = resolveRoute(require('./routes/smartWallet'));
 
 // AGI Tutor routes
+// @ts-ignore
 const agiTutorRoutes = require('./routes/agiTutorRoutes');
 
 // Analytics routes
+// @ts-ignore
 const analyticsRoutes = require('./routes/analytics');
 
 // Initialize Express app
@@ -70,9 +96,9 @@ const redis = new Redis({
   port: parseInt(process.env.REDIS_PORT || '6379'),
   password: process.env.REDIS_PASSWORD
 });
-const secureCommService = new SecureRealtimeCommunication(websocketService.io, redis);
+const secureCommService = new (SecureRealtimeCommunication as any)(websocketService.io, redis);
 
-setSyncWebsocketEmitter((userId, event, data) => {
+setSyncWebsocketEmitter((userId: string, event: string, data: any) => {
   websocketService.emitToUser(userId, event, data);
 });
 
@@ -81,6 +107,22 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Integration of sanitization middleware
+// Performance tracker first
+app.use(securityPerformanceTracker);
+// Blacklist check
+app.use(checkBlacklist);
+// DDoS protection
+app.use(ddosProtection);
+// Bot detection
+app.use(botDetection);
+
+// NEW: Suspicious pattern detection (Reject requests early)
+app.use(detectSuspiciousPatterns);
+
+// NEW/Updated: Sanitize all inputs
+app.use(requestSanitizer);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -107,30 +149,37 @@ app.use('/api/agi-tutor', agiTutorRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 // Autonomous Agents routes
+// @ts-ignore
 const autonomousAgentsRoutes = require('./routes/autonomousAgents');
 app.use('/api/autonomous-agents', autonomousAgentsRoutes);
 
 // Gamification routes
+// @ts-ignore
 const gamificationRoutes = require('./routes/gamification');
 app.use('/api/gamification', gamificationRoutes);
 
 // Bridge routes
+// @ts-ignore
 const bridgeRoutes = require('./routes/bridge');
 app.use('/api/bridge', bridgeRoutes);
 
 // Time-Locked Credential routes
+// @ts-ignore
 const timeLockCredentialsRoutes = require('./routes/timeLockCredentials');
 app.use('/api/time-lock', timeLockCredentialsRoutes);
 
 // VRF (Verifiable Random Function) routes
+// @ts-ignore
 const vrfRoutes = require('./routes/vrf');
 app.use('/api/vrf', vrfRoutes);
 
 // Real-time Translation routes
+// @ts-ignore
 const translationRoutes = require('./routes/translation');
 app.use('/api/translate', translationRoutes);
 
 // Cross-Protocol Bridge routes
+// @ts-ignore
 const crossProtocolBridgeRoutes = require('./routes/crossProtocolBridge');
 app.use('/api/cross-protocol-bridge', crossProtocolBridgeRoutes);
 
@@ -154,7 +203,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('*', (req: any, res: any) => {
   res.status(404).json({
     success: false,
     message: 'Endpoint not found',
@@ -163,7 +212,7 @@ app.use('*', (req, res) => {
 });
 
 // Global error handler
-app.use((err, req, res, next) => {
+app.use((err: any, req: any, res: any, next: any) => {
   console.error('Error:', err);
 
   res.status(err.status || 500).json({
@@ -177,25 +226,13 @@ const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
-    await transactionQueue.startProcessing();
-    await transactionProcessor.start();
-    await transactionEvents.startListening();
+    await (transactionQueue as any).startProcessing();
+    await (transactionProcessor as any).start();
+    await (transactionEvents as any).startListening();
 
     server.listen(PORT, () => {
       console.log(`🚀 AetherMint Education Backend running on port ${PORT}`);
-      console.log(`📚 Quiz Management API available at /api/quizzes`);
-      console.log(`📊 Event Logger API available at /api/events`);
-      console.log(`🔄 Sync API available at /api/sync`);
-      console.log(`📁 Content Management API available at /api/content`);
-      console.log(`💰 Transaction Queue API available at /api/transactions`);
-      console.log(`🤝 Collaboration API available at /api/collaboration`);
-      console.log(`🔮 Holographic Storage API available at /api/holographic`);
-      console.log(`🧠 ACO API available at /api/aco`);
-      console.log(`🌐 Federated Learning API available at /api/federated-learning`);
-      console.log(`🧠 AGI Tutor API available at /api/agi-tutor`);
-      console.log(`🔐 Quantum-Resistant Secure Communication API available at /api/secure-comm`);
       console.log(`🏥 Health check available at /api/health`);
-      console.log(`✅ Transaction Queue System initialized successfully`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -205,9 +242,9 @@ async function startServer() {
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
-  await transactionQueue.stopProcessing();
-  await transactionProcessor.stop();
-  await transactionEvents.stopListening();
+  await (transactionQueue as any).stopProcessing();
+  await (transactionProcessor as any).stop();
+  await (transactionEvents as any).stopListening();
   process.exit(0);
 });
 
@@ -215,5 +252,5 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = app;
-module.exports.server = server;
+export default app;
+export { server };
