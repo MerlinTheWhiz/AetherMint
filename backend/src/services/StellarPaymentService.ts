@@ -110,7 +110,7 @@ export class StellarPaymentService {
       }
 
       // Verify payment details
-      const paymentOperation = transaction.operations.find(op => op.type === 'payment');
+      const paymentOperation = transaction.operations.find((op: any) => op.type === 'payment');
       if (!paymentOperation) {
         errors.push('No payment operation found in transaction');
       }

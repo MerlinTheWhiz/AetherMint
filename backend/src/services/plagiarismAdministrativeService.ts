@@ -536,7 +536,7 @@ export class PlagiarismAdministrativeService {
     successful: string[];
     failed: string[];
   }> {
-    const results = {
+    const results: { successful: string[]; failed: string[] } = {
       successful: [],
       failed: []
     };

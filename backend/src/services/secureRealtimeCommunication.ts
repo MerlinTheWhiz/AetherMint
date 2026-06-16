@@ -312,9 +312,10 @@ export class SecureRealtimeCommunication {
       });
 
       console.log(`User ${data.userId} joined room: ${data.roomId}`);
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Error joining secure room:', error);
-      socket.emit('error', { message: error.message || 'Failed to join room' });
+      socket.emit('error', { message: message || 'Failed to join room' });
     }
   }
 

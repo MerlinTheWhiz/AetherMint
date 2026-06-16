@@ -241,7 +241,7 @@ export class AssignmentController {
     }
   }
 
-  async getSubmissions(req: Request, res: Response) {
+  async getSubmissions(req: AuthenticatedRequest, res: Response) {
     try {
       const { assignmentId } = req.params;
       const { page = 1, limit = 10, status, graded } = req.query;

@@ -66,19 +66,15 @@ export interface RankingResult {
 }
 
 export class IntelligentRanking {
-  private userProfiles: Map<string, UserProfile>;
-  private globalTrends: Map<string, number>;
-  private seasonalFactors: Map<string, number>;
-  private rankingWeights: Map<string, number>;
-  private performanceMetrics: Map<string, number[]>;
+  private userProfiles: Map<string, UserProfile> = new Map();
+  private globalTrends: Map<string, number> = new Map();
+  private seasonalFactors: Map<string, number> = new Map();
+  private rankingWeights: Map<string, number> = new Map();
+  private performanceMetrics: Map<string, number[]> = new Map();
 
   constructor() {
-    this.userProfiles = new Map();
-    this.globalTrends = new Map();
-    this.seasonalFactors = new Map();
     this.initializeRankingWeights();
     this.initializeTrends();
-    this.performanceMetrics = new Map();
   }
 
   /**

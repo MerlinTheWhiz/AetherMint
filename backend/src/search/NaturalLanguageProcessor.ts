@@ -62,14 +62,14 @@ export interface SuggestionResult {
 }
 
 export class NaturalLanguageProcessor {
-  private skillKeywords: Set<string>;
-  private categoryKeywords: Map<string, string[]>;
-  private levelKeywords: Set<string>;
-  private languagePatterns: Map<string, RegExp>;
-  private pricePatterns: RegExp[];
-  private durationPatterns: RegExp[];
-  private ratingPatterns: RegExp[];
-  private intentPatterns: Map<string, { pattern: RegExp; intent: SearchIntent['type']; confidence: number }>;
+  private skillKeywords: Set<string> = new Set();
+  private categoryKeywords: Map<string, string[]> = new Map();
+  private levelKeywords: Set<string> = new Set();
+  private languagePatterns: Map<string, RegExp> = new Map();
+  private pricePatterns: RegExp[] = [];
+  private durationPatterns: RegExp[] = [];
+  private ratingPatterns: RegExp[] = [];
+  private intentPatterns: Map<string, { pattern: RegExp; intent: SearchIntent['type']; confidence: number }> = new Map();
 
   constructor() {
     this.initializeKeywordSets();
