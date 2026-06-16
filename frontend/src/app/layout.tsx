@@ -17,7 +17,7 @@ export default function RootLayout({
 }) {
   // Initialize performance monitoring
   if (typeof window !== 'undefined') {
-    performanceMonitor;
+    void performanceMonitor;
   }
 
   return (
