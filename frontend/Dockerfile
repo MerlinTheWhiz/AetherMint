@@ -10,8 +10,9 @@ COPY package.json package-lock.json ./
 # Copy frontend workspace package.json
 COPY frontend/package.json ./frontend/package.json
 
-# Install frontend workspace dependencies only
-RUN npm ci -w frontend
+# Install frontend workspace dependencies only (skip postinstall scripts — they patch
+# dev-only ESM interop issues that are handled by webpack aliases in next.config.js)
+RUN npm ci -w frontend --ignore-scripts
 
 # =============================================================================
 # Stage 2: Build the application
