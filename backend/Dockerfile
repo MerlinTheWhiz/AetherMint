@@ -1,5 +1,5 @@
 # =============================================================================
-# Stage 1: Build stage - compile TypeScript
+# Stage 1: Build stage - compile TypeScript (uses root workspace lockfile)
 # =============================================================================
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -7,18 +7,20 @@ WORKDIR /app
 # Install build dependencies (Python for native modules like sharp, bcrypt)
 RUN apk add --no-cache python3 py3-pip make g++
 
-# Copy package files first for layer caching
-COPY package.json package-lock.json* ./
+# Copy root package files for workspace resolution
+COPY package.json package-lock.json ./
+# Copy backend workspace package.json
+COPY backend/package.json ./backend/package.json
 
-# Install ALL dependencies (including devDependencies) for build
-RUN npm ci
+# Install backend workspace dependencies (including devDependencies for TypeScript build)
+RUN npm ci -w backend
 
-# Copy source code
-COPY tsconfig.json ./
-COPY src/ ./src/
+# Copy backend source code
+COPY backend/tsconfig.json ./backend/
+COPY backend/src/ ./backend/src/
 
 # Build TypeScript to JavaScript
-RUN npm run build
+RUN npm run build -w backend
 
 # =============================================================================
 # Stage 2: Production dependencies
@@ -29,15 +31,16 @@ WORKDIR /app
 # Install runtime OS dependencies (build tools needed for native modules like sharp)
 RUN apk add --no-cache python3 py3-pip make g++
 
-# Copy package files
-COPY package.json package-lock.json* ./
-COPY requirements.txt* ./
+# Copy root package files
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/package.json
+COPY backend/requirements.txt* ./backend/
 
-# Install only production Node.js dependencies
-RUN npm ci --omit=dev
+# Install only production Node.js dependencies for backend workspace
+RUN npm ci --omit=dev -w backend
 
 # Install Python dependencies if requirements.txt exists
-RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+RUN if [ -f backend/requirements.txt ]; then pip install --no-cache-dir -r backend/requirements.txt; fi
 
 # =============================================================================
 # Stage 3: Production runner
@@ -58,10 +61,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/backend/dist ./dist
 
 # Copy package files for metadata
-COPY --from=builder /app/package.json ./
+COPY --from=builder /app/backend/package.json ./
 
 # Copy Python dependencies if installed
 COPY --from=deps /usr/lib/python3* /usr/lib/python3*

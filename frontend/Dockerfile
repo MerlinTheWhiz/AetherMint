@@ -1,15 +1,17 @@
 # =============================================================================
-# Stage 1: Install dependencies
+# Stage 1: Install dependencies (uses root workspace lockfile)
 # =============================================================================
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy only package files for layer caching
-COPY package.json package-lock.json* ./
+# Copy root package files for workspace resolution
+COPY package.json package-lock.json ./
+# Copy frontend workspace package.json
+COPY frontend/package.json ./frontend/package.json
 
-# Install dependencies
-RUN npm ci
+# Install frontend workspace dependencies only
+RUN npm ci -w frontend
 
 # =============================================================================
 # Stage 2: Build the application
@@ -17,17 +19,22 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copy installed dependencies
+# Copy workspace config and installed dependencies
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps /app/package.json /app/package-lock.json ./
+COPY frontend/package.json ./frontend/package.json
+
+# Copy frontend source code
+COPY frontend/ ./frontend/
+
+# Build Next.js with standalone output
+WORKDIR /app/frontend
+RUN npm run build
 
 # Build-time arguments for image labeling
 ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION
-
-# Build Next.js with standalone output
-RUN npm run build
 
 # =============================================================================
 # Stage 3: Production runner
@@ -43,9 +50,9 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy standalone output from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/frontend/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
 
 # Ensure cache directory permissions
 RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next

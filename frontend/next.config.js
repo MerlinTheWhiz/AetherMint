@@ -3,6 +3,8 @@ const path = require('path');
 const { i18n } = require('./next-i18next.config');
 
 const nextConfig = {
+  // Enable standalone output for Docker container builds
+  output: 'standalone',
   typescript: {
     // Ignore TS build errors — pre-existing type issues across the codebase
     ignoreBuildErrors: true,
