@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Redis } from 'ioredis';
 import axios from 'axios';
+import logger from '../utils/logger';
 
 export interface CrossChainMessage {
   messageId: string;
@@ -59,7 +60,7 @@ export class CrossProtocolBridgeService {
       // Initialize default chains
       this.initializeDefaultChains();
     } catch (error) {
-      console.warn('Redis not available, using in-memory storage');
+      logger.warn('Redis not available, using in-memory storage');
     }
   }
 

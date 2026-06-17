@@ -15,6 +15,7 @@ import { EnrollmentService } from './EnrollmentService';
 import { PaymentService } from './PaymentService';
 import { NotificationService } from '../services/NotificationService';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 export interface StatusTransition {
   from: EnrollmentStatus;
@@ -203,7 +204,7 @@ export class EnrollmentStatusService {
         await this.checkAutomaticTransitions(enrollment);
       }
     } catch (error) {
-      console.error('Error processing automatic transitions:', error);
+      logger.error('Error processing automatic transitions', error);
     }
   }
 
@@ -228,7 +229,7 @@ export class EnrollmentStatusService {
           break; // Only apply one automatic transition at a time
         }
       } catch (error) {
-        console.error(`Error in automatic transition for enrollment ${enrollment.id}:`, error);
+        logger.error(`Error in automatic transition for enrollment ${enrollment.id}`, error);
       }
     }
   }
@@ -286,7 +287,7 @@ export class EnrollmentStatusService {
       try {
         await this.enrollmentService.issueCertificate(enrollment.id);
       } catch (error) {
-        console.error('Error issuing certificate:', error);
+        logger.error('Error issuing certificate', error);
       }
     }
 
@@ -327,7 +328,7 @@ export class EnrollmentStatusService {
           reason || 'Enrollment cancelled'
         );
       } catch (error) {
-        console.error('Error processing refund:', error);
+        logger.error('Error processing refund', error);
       }
     }
 
@@ -405,12 +406,12 @@ export class EnrollmentStatusService {
               courseId
             );
           } catch (error) {
-            console.error(`Error enrolling waitlisted student ${waitlistEntry.userId}:`, error);
+            logger.error(`Error enrolling waitlisted student ${waitlistEntry.userId}`, error);
           }
         }
       }
     } catch (error) {
-      console.error('Error processing waitlist:', error);
+      logger.error('Error processing waitlist', error);
     }
   }
 
@@ -422,9 +423,9 @@ export class EnrollmentStatusService {
       const capacity = await this.enrollmentService.getCourseCapacity(courseId);
       
       // Update course capacity metrics (could be sent to analytics service)
-      console.log(`Updated capacity metrics for course ${courseId}:`, capacity);
+      logger.info('Updated capacity metrics', { courseId, capacity });
     } catch (error) {
-      console.error('Error updating capacity metrics:', error);
+      logger.error('Error updating capacity metrics', error);
     }
   }
 
@@ -436,9 +437,9 @@ export class EnrollmentStatusService {
       const analytics = await this.enrollmentService.getCourseEnrollmentSummary(courseId);
       
       // Update completion analytics (could be sent to analytics service)
-      console.log(`Updated completion analytics for course ${courseId}:`, analytics);
+      logger.info('Updated completion analytics', { courseId, analytics });
     } catch (error) {
-      console.error('Error updating completion analytics:', error);
+      logger.error('Error updating completion analytics', error);
     }
   }
 

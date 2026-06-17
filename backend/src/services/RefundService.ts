@@ -14,6 +14,7 @@ import { PaymentService } from './PaymentService';
 import { EnrollmentService } from './EnrollmentService';
 import { NotificationService } from '../services/NotificationService';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 export interface RefundPolicy {
   id: string;
@@ -349,7 +350,7 @@ export class RefundService {
         refundRequest
       };
     } catch (error) {
-      console.error('Error creating refund request:', error);
+      logger.error('Error creating refund request:', error);
       return {
         success: false,
         message: 'Failed to create refund request',
@@ -516,7 +517,7 @@ export class RefundService {
         refundRequest
       );
     } catch (error) {
-      console.error('Error processing refund:', error);
+      logger.error('Error processing refund:', error);
       refundRequest.status = 'approved'; // Keep approved but note processing error
       refundRequest.adminNotes = (refundRequest.adminNotes || '') + 
         ` | Processing error: ${error instanceof Error ? error.message : 'Unknown error'}`;

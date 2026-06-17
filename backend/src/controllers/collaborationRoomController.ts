@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 
 export class CollaborationRoomController {
   static async createRoom(req: Request, res: Response) {
@@ -22,7 +23,7 @@ export class CollaborationRoomController {
         data: room
       });
     } catch (error) {
-      console.error('Error creating room:', error);
+      logger.error('Error creating room:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to create collaboration room'
@@ -47,7 +48,7 @@ export class CollaborationRoomController {
         data: room
       });
     } catch (error) {
-      console.error('Error fetching room:', error);
+      logger.error('Error fetching room:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to fetch room'
@@ -75,7 +76,7 @@ export class CollaborationRoomController {
         data: rooms
       });
     } catch (error) {
-      console.error('Error listing rooms:', error);
+      logger.error('Error listing rooms:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to list rooms'
@@ -93,7 +94,7 @@ export class CollaborationRoomController {
         message: 'Room ended successfully'
       });
     } catch (error) {
-      console.error('Error ending room:', error);
+      logger.error('Error ending room:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to end room'

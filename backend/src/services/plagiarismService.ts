@@ -9,6 +9,7 @@ import {
   Submission 
 } from '../models/Assignment';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 export interface PlagiarismCheckConfig {
   enabledSources: string[];
@@ -64,10 +65,10 @@ export class PlagiarismService {
       report.sources = result.sources;
       report.status = 'completed';
 
-      console.log(`Plagiarism check completed for submission ${submissionId} in ${processingTime}ms`);
+      logger.info('Plagiarism check completed', { submissionId, processingTime });
       
     } catch (error) {
-      console.error('Plagiarism check failed:', error);
+      logger.error('Plagiarism check failed', error);
       report.status = 'failed';
     }
 
@@ -91,7 +92,7 @@ export class PlagiarismService {
           const report = await this.checkPlagiarism(submissionId, config);
           results.set(submissionId, report);
         } catch (error) {
-          console.error(`Failed to check plagiarism for submission ${submissionId}:`, error);
+          logger.error(`Failed to check plagiarism for submission ${submissionId}`, error);
           results.set(submissionId, {
             id: uuidv4(),
             overallScore: 0,
@@ -339,7 +340,7 @@ export class PlagiarismService {
   ): Promise<void> {
     // In a real implementation, this would update the submission status
     // and notify administrators
-    console.log(`Submission ${submissionId} flagged for review: ${reason}`);
+    logger.info('Submission flagged for review', { submissionId, reason });
   }
 
   async reviewPlagiarismFlag(
@@ -349,7 +350,11 @@ export class PlagiarismService {
     comments?: string
   ): Promise<void> {
     // In a real implementation, this would update the review status
-    console.log(`Plagiarism flag for submission ${submissionId} ${approved ? 'approved' : 'rejected'} by ${reviewedBy}`);
+    logger.info('Plagiarism flag review completed', {
+      submissionId,
+      decision: approved ? 'approved' : 'rejected',
+      reviewedBy,
+    });
   }
 }
 

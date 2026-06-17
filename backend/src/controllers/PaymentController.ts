@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { PaymentService } from '../services/PaymentService';
 import { StellarPaymentService } from '../services/StellarPaymentService';
 import { NotificationService } from '../services/NotificationService';
+import logger from '../utils/logger';
 import { 
   Payment, 
   PaymentIntent, 
@@ -67,7 +68,7 @@ export class PaymentController {
         data: paymentIntent
       });
     } catch (error) {
-      console.error('Error creating payment intent:', error);
+      logger.error('Error creating payment intent:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to create payment intent',
@@ -115,7 +116,7 @@ export class PaymentController {
         data: paymentIntent
       });
     } catch (error) {
-      console.error('Error creating Stellar payment:', error);
+      logger.error('Error creating Stellar payment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to create Stellar payment',
@@ -150,7 +151,7 @@ export class PaymentController {
         }
       });
     } catch (error) {
-      console.error('Error submitting Stellar payment:', error);
+      logger.error('Error submitting Stellar payment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to process Stellar payment',
@@ -189,7 +190,7 @@ export class PaymentController {
         data: payment
       });
     } catch (error) {
-      console.error('Error getting payment:', error);
+      logger.error('Error getting payment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve payment',
@@ -215,7 +216,7 @@ export class PaymentController {
         data: payments
       });
     } catch (error) {
-      console.error('Error getting enrollment payments:', error);
+      logger.error('Error getting enrollment payments:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve enrollment payments',
@@ -257,7 +258,7 @@ export class PaymentController {
         }
       });
     } catch (error) {
-      console.error('Error getting user payment history:', error);
+      logger.error('Error getting user payment history:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve payment history',
@@ -288,7 +289,7 @@ export class PaymentController {
         message: 'Refund processed successfully'
       });
     } catch (error) {
-      console.error('Error processing refund:', error);
+      logger.error('Error processing refund:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to process refund',
@@ -329,7 +330,7 @@ export class PaymentController {
         data: receipt
       });
     } catch (error) {
-      console.error('Error generating receipt:', error);
+      logger.error('Error generating receipt:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to generate receipt',
@@ -350,7 +351,7 @@ export class PaymentController {
         data: settings
       });
     } catch (error) {
-      console.error('Error getting payment settings:', error);
+      logger.error('Error getting payment settings:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve payment settings',
@@ -374,7 +375,7 @@ export class PaymentController {
         message: 'Payment settings updated successfully'
       });
     } catch (error) {
-      console.error('Error updating payment settings:', error);
+      logger.error('Error updating payment settings:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to update payment settings',
@@ -395,7 +396,7 @@ export class PaymentController {
         data: methods
       });
     } catch (error) {
-      console.error('Error getting supported payment methods:', error);
+      logger.error('Error getting supported payment methods:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve supported payment methods',
@@ -423,7 +424,7 @@ export class PaymentController {
         data: validation
       });
     } catch (error) {
-      console.error('Error validating payment parameters:', error);
+      logger.error('Error validating payment parameters:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to validate payment parameters',
@@ -454,7 +455,7 @@ export class PaymentController {
         data: analytics
       });
     } catch (error) {
-      console.error('Error getting payment analytics:', error);
+      logger.error('Error getting payment analytics:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve payment analytics',
@@ -475,7 +476,7 @@ export class PaymentController {
         data: rates
       });
     } catch (error) {
-      console.error('Error getting exchange rates:', error);
+      logger.error('Error getting exchange rates:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve exchange rates',
@@ -504,7 +505,7 @@ export class PaymentController {
         }
       });
     } catch (error) {
-      console.error('Error converting currency:', error);
+      logger.error('Error converting currency:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to convert currency',
@@ -527,7 +528,7 @@ export class PaymentController {
         data: balance
       });
     } catch (error) {
-      console.error('Error getting Stellar balance:', error);
+      logger.error('Error getting Stellar balance:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve Stellar balance',
@@ -555,7 +556,7 @@ export class PaymentController {
         data: history
       });
     } catch (error) {
-      console.error('Error getting Stellar transaction history:', error);
+      logger.error('Error getting Stellar transaction history:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve Stellar transaction history',
@@ -582,7 +583,7 @@ export class PaymentController {
           await this.processStellarWebhookRefund(transaction);
           break;
         default:
-          console.warn('Unknown webhook type:', type);
+          logger.warn('Unknown webhook type', { type });
       }
 
       res.json({
@@ -590,7 +591,7 @@ export class PaymentController {
         message: 'Webhook processed successfully'
       });
     } catch (error) {
-      console.error('Error processing Stellar webhook:', error);
+      logger.error('Error processing Stellar webhook', error);
       res.status(500).json({
         success: false,
         message: 'Failed to process webhook',
@@ -615,7 +616,7 @@ export class PaymentController {
           await this.processPayPalWebhook(event, data);
           break;
         default:
-          console.warn('Unknown payment gateway:', gateway);
+          logger.warn('Unknown payment gateway', { gateway });
       }
 
       res.json({
@@ -623,7 +624,7 @@ export class PaymentController {
         message: 'Webhook processed successfully'
       });
     } catch (error) {
-      console.error('Error processing payment gateway webhook:', error);
+      logger.error('Error processing payment gateway webhook', error);
       res.status(500).json({
         success: false,
         message: 'Failed to process webhook',
@@ -639,7 +640,7 @@ export class PaymentController {
     // Find payment intent by transaction hash
     // Update payment status
     // Send notifications
-    console.log('Processing Stellar webhook payment:', transaction);
+    logger.info('Processing Stellar webhook payment', { transaction });
   }
 
   /**
@@ -649,7 +650,7 @@ export class PaymentController {
     // Find refund by transaction hash
     // Update refund status
     // Send notifications
-    console.log('Processing Stellar webhook refund:', transaction);
+    logger.info('Processing Stellar webhook refund', { transaction });
   }
 
   /**
@@ -657,7 +658,7 @@ export class PaymentController {
    */
   private async processStripeWebhook(event: string, data: any) {
     // Handle Stripe webhook events
-    console.log('Processing Stripe webhook:', event, data);
+    logger.info('Processing Stripe webhook', { event, data });
   }
 
   /**
@@ -665,6 +666,6 @@ export class PaymentController {
    */
   private async processPayPalWebhook(event: string, data: any) {
     // Handle PayPal webhook events
-    console.log('Processing PayPal webhook:', event, data);
+    logger.info('Processing PayPal webhook', { event, data });
   }
 }

@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { crossProtocolBridgeService } from '../services/crossProtocolBridgeService';
 import { authenticateToken } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = express.Router();
 
@@ -57,7 +58,7 @@ router.post(
         message: 'Cross-chain message sent successfully',
       });
     } catch (error: any) {
-      console.error('Error sending message:', error);
+      logger.error('Error sending message:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to send message',
@@ -96,7 +97,7 @@ router.get(
         data: message,
       });
     } catch (error: any) {
-      console.error('Error getting message:', error);
+      logger.error('Error getting message:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get message',
@@ -129,7 +130,7 @@ router.get(
         count: messages.length,
       });
     } catch (error: any) {
-      console.error('Error getting messages:', error);
+      logger.error('Error getting messages:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get messages',
@@ -162,7 +163,7 @@ router.post(
         message: `Batched ${messageIds.length} messages successfully`,
       });
     } catch (error: any) {
-      console.error('Error batching messages:', error);
+      logger.error('Error batching messages:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to batch messages',
@@ -203,7 +204,7 @@ router.post(
         message: 'State proof submitted successfully',
       });
     } catch (error: any) {
-      console.error('Error submitting proof:', error);
+      logger.error('Error submitting proof:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to submit proof',
@@ -236,7 +237,7 @@ router.post(
         message: isValid ? 'Proof verified successfully' : 'Proof verification failed',
       });
     } catch (error: any) {
-      console.error('Error verifying proof:', error);
+      logger.error('Error verifying proof:', error);
       res.status(400).json({
         success: false,
         message: error.message || 'Failed to verify proof',
@@ -276,7 +277,7 @@ router.get(
         },
       });
     } catch (error: any) {
-      console.error('Error calculating gas cost:', error);
+      logger.error('Error calculating gas cost:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to calculate gas cost',
@@ -302,7 +303,7 @@ router.get(
         data: stats,
       });
     } catch (error: any) {
-      console.error('Error getting stats:', error);
+      logger.error('Error getting stats:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get statistics',
