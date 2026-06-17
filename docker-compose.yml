@@ -1,0 +1,183 @@
+version: "3.9"
+
+# =============================================================================
+# AetherMint - Docker Compose for Local Development
+# =============================================================================
+#
+# Usage:
+#   docker compose up              # Start all services
+#   docker compose up frontend     # Start only frontend
+#   docker compose up backend      # Start only backend
+#   docker compose up --build      # Rebuild and start
+#   docker compose down            # Stop and remove containers
+#   docker compose down -v         # Also remove volumes
+#
+# Access:
+#   Frontend: http://localhost:3000
+#   Backend:  http://localhost:3001
+#   PostgreSQL: localhost:5432
+#   Redis:     localhost:6379
+#   MongoDB:   localhost:27017
+# =============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # Frontend - Next.js application
+  # --------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        BUILD_DATE: "${BUILD_DATE:-unknown}"
+        VCS_REF: "${VCS_REF:-unknown}"
+        VERSION: "${VERSION:-0.1.0}"
+    container_name: aethermint-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_STELLAR_RECEIVER_ADDRESS=${NEXT_PUBLIC_STELLAR_RECEIVER_ADDRESS:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - aethermint-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # --------------------------------------------------------------------------
+  # Backend - Express API server
+  # --------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        BUILD_DATE: "${BUILD_DATE:-unknown}"
+        VCS_REF: "${VCS_REF:-unknown}"
+        VERSION: "${VERSION:-0.1.0}"
+    container_name: aethermint-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=aethermint
+      - DB_USER=aethermint
+      - DB_PASSWORD=${DB_PASSWORD:-aethermint_dev}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - MONGODB_URI=mongodb://mongodb:27017/aethermint
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aethermint-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # --------------------------------------------------------------------------
+  # PostgreSQL - Primary database
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: aethermint-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=aethermint
+      - POSTGRES_USER=aethermint
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-aethermint_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aethermint-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aethermint -d aethermint"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # Redis - Cache and session store
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: aethermint-redis
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    networks:
+      - aethermint-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # --------------------------------------------------------------------------
+  # MongoDB - Document store (optional, for certain services)
+  # --------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7
+    container_name: aethermint-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=aethermint
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - aethermint-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  aethermint-network:
+    name: aethermint-network
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: aethermint-postgres-data
+  redis_data:
+    name: aethermint-redis-data
+  mongo_data:
+    name: aethermint-mongo-data
