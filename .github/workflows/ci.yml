@@ -45,7 +45,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci -w backend
+        run: |
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm ci -w backend
 
       - name: Build backend
         run: npm run build -w backend
@@ -63,7 +67,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci -w frontend
+        run: |
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm ci -w frontend
 
       - name: Build frontend
         run: npm run build -w frontend
