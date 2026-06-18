@@ -50,8 +50,8 @@ jobs:
 
       - name: Verify lock file
         run: |
-          if [ ! -f backend/package-lock.json ]; then
-            echo "Error: backend/package-lock.json is missing. Run 'npm install --package-lock-only' in backend/"
+          if [ ! -f package-lock.json ]; then
+            echo "Error: root package-lock.json is missing. Run 'npm install --package-lock-only' in the project root"
             exit 1
           fi
 
@@ -82,8 +82,8 @@ jobs:
 
       - name: Verify lock file
         run: |
-          if [ ! -f frontend/package-lock.json ]; then
-            echo "Error: frontend/package-lock.json is missing. Run 'npm install --package-lock-only' in frontend/"
+          if [ ! -f package-lock.json ]; then
+            echo "Error: root package-lock.json is missing. Run 'npm install --package-lock-only' in the project root"
             exit 1
           fi
 
