@@ -14,6 +14,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --reporter=json,html,junit",
+    "test:e2e:install": "playwright install --with-deps",
     "postinstall": "node scripts/postinstall.js",
     "prepare": "husky install",
     "analyze": "ANALYZE=true next build",
@@ -84,7 +87,8 @@
     "next-bundle-analyzer": "^0.6.0",
     "postcss": "^8.4.28",
     "prettier": "^3.0.2",
-    "typescript": "^5.1.6"
+    "typescript": "^5.1.6",
+    "@playwright/test": "^1.42.0"
   },
   "keywords": [
     "stellar",
