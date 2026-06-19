@@ -87,8 +87,8 @@
     "next-bundle-analyzer": "^0.6.0",
     "postcss": "^8.4.28",
     "prettier": "^3.0.2",
-    "typescript": "^5.1.6",
-    "@playwright/test": "^1.42.0"
+    "ts-jest": "^29.4.11",
+    "typescript": "^5.1.6"
   },
   "keywords": [
     "stellar",
