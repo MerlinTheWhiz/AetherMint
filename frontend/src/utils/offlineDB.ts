@@ -204,6 +204,31 @@ export const saveOfflineProgress = async <T>(
   }
 };
 
+/**
+ * Delete a single course from the offline store. No-op when the course
+ * isn't present. Used by `useOfflineData.removeCourse`; preserves the
+ * `downloadedAt` timestamps on neighbouring records (unlike a
+ * clear-then-rewrite approach which would invalidate the sort order).
+ */
+export const deleteOfflineCourse = (courseId: string): Promise<void> => {
+  return runRequest<void, 'courses'>('courses', 'readwrite', (store) =>
+    store.delete(courseId)
+  );
+};
+
+/**
+ * Wipe every record in a single object store.
+ *
+ * Used by the offline-settings UI ("Clear offline data") and by the
+ * `useOfflineData` hook when the user wants to reset state without
+ * touching other stores.
+ */
+export const clearStore = async (store: OfflineStoreName): Promise<void> => {
+  await runRequest<void, typeof store>(store, 'readwrite', (objectStore) =>
+    objectStore.clear()
+  );
+};
+
 /** Read a single progress record. */
 export const getOfflineProgress = async <T = unknown>(
   id: string

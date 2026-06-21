@@ -305,16 +305,23 @@ if (self.workbox) {
   // ---------------------------------------------------------------------------
   // User-prompted update flow.
   // ---------------------------------------------------------------------------
+  // IMPORTANT: this arrow function is fully closed so the sync / push /
+  // notificationclick handlers below register at the worker scope, not at
+  // the body of the message handler. Earlier versions were missing the
+  // closing `});`, which meant subsequent listeners only registered when the
+  // page posted the first SKIP_WAITING message — and the file overall
+  // failed to parse as JavaScript. Fixed by [AetherMint PR: offline-#139].
   self.addEventListener('message', (event) => {
     if (event && event.data && event.data.type === 'SKIP_WAITING') {
       // eslint-disable-next-line no-console
       console.info('[AetherMint SW] SKIP_WAITING — activating new version.');
       self.skipWaiting();
     }
+  });
 
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   // IndexedDB-driven background sync trigger.
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   self.addEventListener('sync', (event) => {
     if (event.tag === 'sync-progress' || event.tag === 'background-sync') {
       // The Workbox BackgroundSyncPlugin transparently handles queued
@@ -325,20 +332,20 @@ if (self.workbox) {
     }
   });
 
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   // Push notifications.
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   self.addEventListener('push', (event) => {
     if (!event.data) return;
 
-    let payload: { title?: string; body?: string } = {};
+    let payload = {};
     try {
       payload = event.data.json();
     } catch {
       payload = { title: 'AetherMint', body: event.data.text() };
     }
 
-    const options: NotificationOptions = {
+    const options = {
       body: payload.body || 'You have a new notification from AetherMint',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/badge-72x72.png',
