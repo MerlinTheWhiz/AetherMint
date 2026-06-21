@@ -311,7 +311,6 @@ if (self.workbox) {
       console.info('[AetherMint SW] SKIP_WAITING — activating new version.');
       self.skipWaiting();
     }
-  });
 
   // ---------------------------------------------------------------------------
   // IndexedDB-driven background sync trigger.

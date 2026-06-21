@@ -71,7 +71,8 @@ pub struct CommitmentData {
     pub created_at: u64,
 }
 
-#[contract]
+// Contract attributes disabled - see lib.rs for main contract
+// #[contract]
 pub struct VRFSystem;
 
 #[contractimpl]
@@ -457,7 +458,7 @@ impl VRFSystem {
         combined.append(&Bytes::from_slice(env, &entropy1.to_array()));
         combined.append(&Bytes::from_slice(env, &entropy2.to_array()));
         
-        env.crypto().sha256(&combined)
+        env.crypto().sha256(&combined).into()
     }
 
     fn combine_seeds(env: &Env, seed1: &BytesN<32>, seed2: &BytesN<32>) -> [u8; 32] {
@@ -480,6 +481,6 @@ impl VRFSystem {
 
     fn hash_reveal(env: &Env, value: &String) -> BytesN<32> {
         let bytes = crate::string_to_bytes(env, value);
-        env.crypto().sha256(&bytes)
+        env.crypto().sha256(&bytes).into()
     }
 }
