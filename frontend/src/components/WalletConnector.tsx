@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { WalletsKit, MAINNET, TESTNET } from '@creit.tech/stellar-wallets-kit';
 import { WalletInfo } from '@/types/enrollment';
 import { stellarService, isValidStellarAddress, formatStellarBalance } from '@/lib/stellar';
+import toast from 'react-hot-toast';
 import { Wallet, AlertCircle, CheckCircle, Copy, ExternalLink } from 'lucide-react';
 
 interface WalletConnectorProps {
@@ -108,7 +109,22 @@ const WalletConnector: React.FC<WalletConnectorProps> = ({
 
     } catch (error: any) {
       console.error('Wallet connection error:', error);
-      setError(error.message || 'Failed to connect wallet');
+      const errorMessage = error.message || 'Failed to connect wallet';
+      setError(errorMessage);
+
+      // Show contextual toast for wallet errors
+      if (errorMessage.toLowerCase().includes('network') || 
+          errorMessage.toLowerCase().includes('timeout') ||
+          errorMessage.toLowerCase().includes('fetch')) {
+        toast.error('Network error: Unable to connect to the Stellar network. Please check your connection.', {
+          duration: 6000,
+        });
+      } else if (errorMessage.toLowerCase().includes('rejected') || 
+                 errorMessage.toLowerCase().includes('denied')) {
+        toast.error('Wallet connection was rejected', { duration: 4000 });
+      } else {
+        toast.error(`Wallet error: ${errorMessage}`, { duration: 5000 });
+      }
     } finally {
       setIsConnecting(false);
     }
@@ -126,7 +142,9 @@ const WalletConnector: React.FC<WalletConnectorProps> = ({
       setError(null);
     } catch (error: any) {
       console.error('Wallet disconnection error:', error);
-      setError(error.message || 'Failed to disconnect wallet');
+      const errorMessage = error.message || 'Failed to disconnect wallet';
+      setError(errorMessage);
+      toast.error(`Disconnection error: ${errorMessage}`, { duration: 4000 });
     }
   };
 
@@ -134,9 +152,10 @@ const WalletConnector: React.FC<WalletConnectorProps> = ({
     if (connectedWallet?.publicKey) {
       try {
         await navigator.clipboard.writeText(connectedWallet.publicKey);
-        // You could add a toast notification here
+        toast.success('Address copied to clipboard', { duration: 3000 });
       } catch (error) {
         console.error('Failed to copy address:', error);
+        toast.error('Failed to copy address to clipboard', { duration: 3000 });
       }
     }
   };

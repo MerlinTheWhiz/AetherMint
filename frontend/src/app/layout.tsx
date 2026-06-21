@@ -4,6 +4,7 @@ import './globals.css';
 import { performanceMonitor } from '@/lib/performance-monitor';
 // Importing env triggers Zod validation at startup — throws with a clear message if vars are missing/invalid.
 import '@/lib/env';
+import { RootErrorBoundary } from '@/components/providers/RootErrorBoundary';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -32,7 +33,9 @@ export default function RootLayout({
           Skip to main content
         </a>
         <main id="main-content" role="main" tabIndex={-1}>
-          {children}
+          <RootErrorBoundary>
+            {children}
+          </RootErrorBoundary>
         </main>
       </body>
     </html>
