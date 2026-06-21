@@ -1,9 +1,12 @@
 import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import type { AppProps } from 'next/app';
+import { appWithTranslation } from 'next-i18next';
 import { WalletProvider } from '../context/WalletContext';
 import { Toaster } from 'react-hot-toast';
 import '../styles/globals.css';
+// Bootstraps i18next on the client side (LanguageDetector, querystring, etc).
+import '../lib/i18n';
 
 // The OfflineIndicator uses `useNetworkStatus`, which reads
 // `navigator.onLine` on first render — that produces a different value
@@ -51,4 +54,4 @@ function MyApp({ Component, pageProps }: AppProps) {
   );
 }
 
-export default MyApp;
+export default appWithTranslation(MyApp);

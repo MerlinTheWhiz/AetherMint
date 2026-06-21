@@ -1,0 +1,52 @@
+{
+  "title": "Mensajes de Error",
+  "description": "Mensajes de error comunes y sus traducciones",
+  "general": {
+    "unknown": "Ocurrió un error desconocido",
+    "unexpected": "Ocurrió un error inesperado",
+    "server": "Ocurrió un error del servidor",
+    "network": "Ocurrió un error de red",
+    "timeout": "Tiempo de espera agotado",
+    "offline": "Estás fuera de línea",
+    "retry": "Por favor intenta de nuevo",
+    "contactSupport": "Por favor contacta al soporte"
+  },
+  "authentication": {
+    "invalidCredentials": "Usuario o contraseña inválidos",
+    "usernameRequired": "Se requiere nombre de usuario",
+    "passwordRequired": "Se requiere contraseña",
+    "emailRequired": "Se requiere correo electrónico",
+    "invalidEmail": "Dirección de correo inválida",
+    "weakPassword": "La contraseña es demasiado débil",
+    "passwordMismatch": "Las contraseñas no coinciden",
+    "sessionExpired": "La sesión ha expirado",
+    "loginRequired": "Inicio de sesión requerido",
+    "permissionDenied": "Permiso denegado"
+  },
+  "authorization": {
+    "accessDenied": "Acceso denegado",
+    "unauthorized": "Acceso no autorizado",
+    "insufficientPermissions": "Permisos insuficientes"
+  },
+  "validation": {
+    "required": "Este campo es obligatorio",
+    "invalid": "Valor inválido",
+    "tooShort": "El valor es demasiado corto",
+    "tooLong": "El valor es demasiado largo",
+    "email": "Dirección de correo inválida",
+    "url": "URL inválida",
+    "phone": "Número de teléfono inválido"
+  },
+  "network": {
+    "offline": "Actualmente estás fuera de línea",
+    "online": "Ahora estás en línea",
+    "timeout": "Tiempo de espera agotado",
+    "notFound": "Recurso no encontrado"
+  },
+  "payment": {
+    "paymentFailed": "Pago fallido",
+    "paymentDeclined": "Pago rechazado",
+    "insufficientFunds": "Fondos insuficientes",
+    "invalidCard": "Datos de tarjeta inválidos"
+  }
+}
