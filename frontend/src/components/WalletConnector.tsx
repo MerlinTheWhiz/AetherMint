@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { WalletsKit, MAINNET, TESTNET } from '@creit.tech/stellar-wallets-kit';
 import { WalletInfo } from '@/types/enrollment';
 import { stellarService, isValidStellarAddress, formatStellarBalance } from '@/lib/stellar';
-import { Wallet, AlertCircle, CheckCircle, Copy, ExternalLink } from 'lucide-react';
+import { Wallet, AlertCircle, CheckCircle, Copy, ExternalLink, Loader2 } from 'lucide-react';
 
 interface WalletConnectorProps {
   onWalletConnect: (wallet: WalletInfo) => void;
@@ -276,10 +276,17 @@ const WalletConnector: React.FC<WalletConnectorProps> = ({
           <button
             onClick={connectWallet}
             disabled={isConnecting}
-            className="w-full min-h-[44px] bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm sm:text-base active:scale-[0.98]"
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center space-x-2"
             aria-label={isConnecting ? 'Connecting wallet' : 'Connect wallet'}
           >
-            {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+            {isConnecting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                <span>Connecting...</span>
+              </>
+            ) : (
+              'Connect Wallet'
+            )}
           </button>
 
           {network === 'testnet' && (

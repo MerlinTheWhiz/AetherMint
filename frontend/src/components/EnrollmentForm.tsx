@@ -5,6 +5,7 @@ import { EnrollmentFormProps, EnrollmentStep, EnrollmentData, WalletInfo, Transa
 import { env } from '@/lib/env';
 import WalletConnector from './WalletConnector';
 import PaymentProcessor from './PaymentProcessor';
+import Skeleton from './Skeleton';
 import { 
   User, 
   CreditCard, 
@@ -28,6 +29,9 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
+
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isTransitioningStep, setIsTransitioningStep] = useState(false);
 
   const [personalInfo, setPersonalInfo] = useState({
     firstName: '',
@@ -76,30 +80,12 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
   ];
 
   useEffect(() => {
-    // Update steps completion status
-    const updatedSteps = steps.map((step, index) => {
-      let isCompleted = false;
-      
-      switch (step.id) {
-        case 'personal-info':
-          isCompleted = step.validation({ personalInfo });
-          break;
-        case 'wallet-connection':
-          isCompleted = step.validation({ wallet });
-          break;
-        case 'payment':
-          isCompleted = !!transactionHash;
-          break;
-        case 'confirmation':
-          isCompleted = index < currentStep;
-          break;
-      }
-      
-      return { ...step, isCompleted };
-    });
-    
-    // Update the steps state if needed
-  }, [personalInfo, wallet, transactionHash, currentStep]);
+    // Brief delay to prevent flickering on initial mount
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleNext = () => {
     const currentStepData = steps[currentStep];
@@ -130,7 +116,12 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     setError(null);
     
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      setIsTransitioningStep(true);
+      // Brief delay to show transition loading state
+      setTimeout(() => {
+        setCurrentStep(currentStep + 1);
+        setIsTransitioningStep(false);
+      }, 100);
     } else {
       handleSubmit();
     }
@@ -138,8 +129,12 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
 
   const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-      setError(null);
+      setIsTransitioningStep(true);
+      setTimeout(() => {
+        setCurrentStep(currentStep - 1);
+        setError(null);
+        setIsTransitioningStep(false);
+      }, 100);
     }
   };
 
@@ -224,6 +219,87 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
 
   const CurrentStepComponent = steps[currentStep].component;
 
+  // Show initialization skeleton to prevent flickering on mount
+  if (isInitializing) {
+    return (
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg" role="region" aria-label="Loading enrollment form" aria-busy="true">
+        <nav aria-label="Enrollment progress" className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            {steps.map((_, index) => (
+              <div key={index} className="flex items-center flex-1">
+                <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" aria-hidden="true" />
+                <div className="ml-3 flex-1 hidden sm:block">
+                  <div className="h-3 bg-gray-200 animate-pulse rounded w-20" aria-hidden="true" />
+                  <div className="h-2 bg-gray-200 animate-pulse rounded w-16 mt-1" aria-hidden="true" />
+                </div>
+                {index < steps.length - 1 && (
+                  <div className="flex-1 h-px mx-4 bg-gray-200" aria-hidden="true" />
+                )}
+              </div>
+            ))}
+          </div>
+        </nav>
+        <div className="p-6">
+          <div className="mb-6">
+            <div className="h-7 bg-gray-200 animate-pulse rounded w-48 mb-2" aria-hidden="true" />
+            <div className="h-4 bg-gray-200 animate-pulse rounded w-64" aria-hidden="true" />
+          </div>
+          <Skeleton variant="card" lines={4} aria-label="Loading enrollment form" />
+        </div>
+        <span className="sr-only" role="status">Loading enrollment form...</span>
+      </div>
+    );
+  }
+
+  // Show transition skeleton when moving between steps
+  if (isTransitioningStep) {
+    return (
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg" role="region" aria-label="Loading next step" aria-busy="true">
+        <nav aria-label="Enrollment progress" className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center flex-1">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
+                    index < currentStep ? 'bg-green-600 text-white' : 
+                    index === currentStep ? 'bg-blue-600 text-white' : 
+                    'bg-gray-200 text-gray-600'
+                  }`}
+                  aria-label={`Step ${index + 1}: ${step.title}`}
+                >
+                  {index < currentStep ? (
+                    <CheckCircle className="w-5 h-5" aria-hidden="true" />
+                  ) : (
+                    <span aria-hidden="true">{index + 1}</span>
+                  )}
+                </div>
+                <div className="ml-3 hidden sm:block">
+                  <p className={`text-sm font-medium ${index <= currentStep ? 'text-gray-900' : 'text-gray-500'}`}>
+                    {step.title}
+                  </p>
+                </div>
+                {index < steps.length - 1 && (
+                  <div className={`flex-1 h-px mx-4 ${index < currentStep ? 'bg-green-600' : 'bg-gray-200'}`} aria-hidden="true" />
+                )}
+              </div>
+            ))}
+          </div>
+        </nav>
+        <div className="p-6">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" aria-hidden="true" />
+              <p className="text-gray-500 animate-pulse" role="status">
+                Loading {steps[currentStep]?.title || 'next step'}...
+              </p>
+            </div>
+          </div>
+        </div>
+        <span className="sr-only" role="status">Loading next step, please wait...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full" role="form" aria-label="Course enrollment form">
       {/* Progress Steps - improved for mobile */}
@@ -298,8 +374,8 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
         <div className="mt-6 flex flex-col xs:flex-row justify-between gap-3">
           <button
             onClick={handlePrevious}
-            disabled={currentStep === 0}
-            className="w-full xs:w-auto min-h-[44px] flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base font-medium active:scale-[0.98]"
+            disabled={currentStep === 0 || isSubmitting}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             aria-label="Go to previous step"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
@@ -308,8 +384,8 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
 
           <button
             onClick={handleNext}
-            disabled={isSubmitting}
-            className="w-full xs:w-auto min-h-[44px] flex items-center justify-center space-x-2 px-6 sm:px-8 py-2 sm:py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base font-medium active:scale-[0.98]"
+            disabled={isSubmitting || isTransitioningStep}
+            className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             aria-label={isSubmitting ? 'Processing enrollment' : currentStep === steps.length - 1 ? 'Complete enrollment' : 'Go to next step'}
           >
             {isSubmitting ? (
@@ -338,7 +414,7 @@ const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
 // Step Components
 const PersonalInfoStep: React.FC<any> = ({ personalInfo, onPersonalInfoChange }) => {
   const handleChange = (field: string, value: string) => {
-    onPersonalInfoChange(prev => ({ ...prev, [field]: value }));
+    onPersonalInfoChange((prev: typeof personalInfo) => ({ ...prev, [field]: value }));
   };
 
   return (

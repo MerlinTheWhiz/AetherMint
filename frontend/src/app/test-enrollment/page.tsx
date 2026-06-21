@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Course, WalletInfo, EnrollmentData } from '@/types/enrollment';
+import Skeleton from '@/components/Skeleton';
 
 const TestEnrollmentPage: React.FC = () => {
   const router = useRouter();
@@ -173,6 +174,8 @@ const TestEnrollmentPage: React.FC = () => {
     router.push(`/enroll/${mockCourse.id}`);
   };
 
+  const testInProgress = isRunning && testResults.length === 0;
+
   return (
     <div className="min-h-screen bg-gray-50 py-6 sm:py-8 md:py-12">
       <div className="max-w-4xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8">
@@ -182,48 +185,74 @@ const TestEnrollmentPage: React.FC = () => {
             Test the complete enrollment functionality including API endpoints, components, and utilities.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-6 sm:mb-8">
-            <div className="bg-blue-50 rounded-xl sm:rounded-lg p-4 sm:p-6">
-              <h2 className="text-base sm:text-lg font-semibold text-blue-900 mb-3 sm:mb-4">Test Data</h2>
-              <div className="space-y-2 text-xs sm:text-sm break-all">
-                <div>
-                  <span className="font-medium">Course ID:</span> {mockCourse.id}
+          {/* Show skeleton while tests are initializing */}
+          {testInProgress ? (
+            <div className="mb-8" role="region" aria-label="Test execution in progress" aria-busy="true">
+              <div className="bg-blue-50 rounded-lg p-6 mb-6">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-4 h-4 bg-blue-500 rounded-full animate-pulse" aria-hidden="true" />
+                  <h2 className="text-lg font-semibold text-blue-900">Running Tests</h2>
                 </div>
-                <div>
-                  <span className="font-medium">Course Title:</span> {mockCourse.title}
-                </div>
-                <div>
-                  <span className="font-medium">Price:</span> {mockCourse.price} {mockCourse.currency}
-                </div>
-                <div>
-                  <span className="font-medium">Wallet Address:</span> {mockWallet.publicKey.slice(0, 16)}...
-                </div>
-                <div>
-                  <span className="font-medium">Network:</span> {mockWallet.network}
+                <div className="space-y-3">
+                  <Skeleton variant="list-item" lines={1} hasAvatar={false} aria-label="Test step loading" />
+                  <Skeleton variant="list-item" lines={1} hasAvatar={false} aria-label="Test step loading" />
+                  <Skeleton variant="list-item" lines={1} hasAvatar={false} aria-label="Test step loading" />
+                  <Skeleton variant="text" lines={2} aria-label="Test results loading" />
                 </div>
               </div>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              <div className="bg-blue-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-blue-900 mb-4">Test Data</h2>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">Course ID:</span> {mockCourse.id}
+                  </div>
+                  <div>
+                    <span className="font-medium">Course Title:</span> {mockCourse.title}
+                  </div>
+                  <div>
+                    <span className="font-medium">Price:</span> {mockCourse.price} {mockCourse.currency}
+                  </div>
+                  <div>
+                    <span className="font-medium">Wallet Address:</span> {mockWallet.publicKey.slice(0, 20)}...
+                  </div>
+                  <div>
+                    <span className="font-medium">Network:</span> {mockWallet.network}
+                  </div>
+                </div>
+              </div>
 
-            <div className="bg-green-50 rounded-xl sm:rounded-lg p-4 sm:p-6">
-              <h2 className="text-base sm:text-lg font-semibold text-green-900 mb-3 sm:mb-4">Test Coverage</h2>
-              <ul className="space-y-1.5 text-xs sm:text-sm text-green-800">
-                <li>• Course data validation</li>
-                <li>• Wallet connection validation</li>
-                <li>• API POST endpoint</li>
-                <li>• API GET endpoint</li>
-                <li>• Component imports</li>
-                <li>• Stellar utilities</li>
-              </ul>
+              <div className="bg-green-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-green-900 mb-4">Test Coverage</h2>
+                <ul className="space-y-1 text-sm text-green-800">
+                  <li>• Course data validation</li>
+                  <li>• Wallet connection validation</li>
+                  <li>• API POST endpoint</li>
+                  <li>• API GET endpoint</li>
+                  <li>• Component imports</li>
+                  <li>• Stellar utilities</li>
+                </ul>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex flex-col xs:flex-row gap-3 sm:gap-4 mb-6 sm:mb-8">
             <button
               onClick={testEnrollmentFlow}
               disabled={isRunning}
-              className="w-full xs:flex-1 min-h-[44px] bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm sm:text-base active:scale-[0.98]"
+              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center space-x-2"
+              aria-label={isRunning ? 'Tests are running' : 'Run enrollment tests'}
             >
-              {isRunning ? 'Running Tests...' : 'Run Tests'}
+              {isRunning ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                  <span>Running Tests...</span>
+                </>
+              ) : (
+                'Run Tests'
+              )}
             </button>
             <button
               onClick={navigateToEnrollment}
@@ -234,21 +263,37 @@ const TestEnrollmentPage: React.FC = () => {
           </div>
 
           {testResults.length > 0 && (
-            <div className="bg-gray-50 rounded-xl sm:rounded-lg p-4 sm:p-6">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Test Results</h2>
-              <div className="space-y-2 max-h-72 sm:max-h-96 overflow-y-auto">
+            <div className="bg-gray-50 rounded-lg p-6" role="region" aria-label="Test results">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Test Results
+                {isRunning && (
+                  <span className="ml-2 text-sm font-normal text-blue-600">
+                    <span className="inline-block w-3 h-3 bg-blue-500 rounded-full animate-pulse mr-1" aria-hidden="true" />
+                    In progress...
+                  </span>
+                )}
+              </h2>
+              <div className="space-y-2 max-h-96 overflow-y-auto" role="log" aria-label="Test result log" aria-live="polite">
                 {testResults.map((result, index) => (
                   <div
                     key={index}
-                    className={`text-xs sm:text-sm font-mono p-2 sm:p-3 rounded-lg ${
+                    className={`text-sm font-mono p-2 rounded transition-opacity ${
                       result.includes('✅') ? 'bg-green-100 text-green-800' :
                       result.includes('❌') ? 'bg-red-100 text-red-800' :
                       'bg-gray-100 text-gray-800'
                     }`}
+                    role="status"
+                    aria-label={result.replace(/[✅❌🎉]/g, '').trim()}
                   >
                     {result}
                   </div>
                 ))}
+                {isRunning && (
+                  <div className="text-sm font-mono p-2 rounded bg-blue-100 text-blue-800 animate-pulse" role="status" aria-label="Test in progress">
+                    <span className="inline-block w-3 h-3 bg-blue-500 rounded-full animate-pulse mr-2" aria-hidden="true" />
+                    Running next test...
+                  </div>
+                )}
               </div>
             </div>
           )}

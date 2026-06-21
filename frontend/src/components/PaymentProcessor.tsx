@@ -15,6 +15,7 @@ import {
   Loader2
 } from 'lucide-react';
 
+
 const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
   course,
   wallet,
@@ -168,6 +169,21 @@ const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
     }
   };
 
+  const getStatusDescription = () => {
+    switch (paymentStatus) {
+      case 'processing':
+        return 'Your payment is being processed. Please do not close this page.';
+      case 'pending':
+        return 'Your transaction is pending confirmation on the Stellar network.';
+      case 'success':
+        return 'Your payment has been confirmed.';
+      case 'failed':
+        return 'There was an issue processing your payment.';
+      default:
+        return 'Review your payment details below.';
+    }
+  };
+
   if (paymentStatus === 'success' && transactionReceipt) {
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-5 sm:p-8 shadow-sm w-full" role="region" aria-label="Payment success confirmation" aria-live="polite">
@@ -209,20 +225,40 @@ const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 sm:p-8 shadow-sm w-full" role="region" aria-label="Payment section" aria-live="polite">
-      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 mb-6">
+    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm relative" role="region" aria-label="Payment section" aria-live="polite">
+      {/* Subtle overlay during balance check */}
+      {isCheckingBalance && (
+        <div
+          className="absolute inset-0 bg-white/60 rounded-lg z-10 flex items-center justify-center"
+          role="status"
+          aria-label="Checking account balance and estimating fees"
+        >
+          <div className="flex items-center space-x-2 text-blue-600">
+            <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+            <span className="text-sm font-medium">Verifying balance...</span>
+          </div>
+        </div>
+      )}
+      <div className="flex items-start justify-between mb-6">
         <div className="flex items-center space-x-3">
           {getStatusIcon()}
           <div>
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Payment Details</h3>
-            <p className="text-sm sm:text-base text-gray-600" aria-live="polite" aria-atomic="true">{getStatusText()}</p>
+            <h3 className="text-lg font-semibold text-gray-900">Payment Details</h3>
+            <p className="text-sm text-gray-600" aria-live="polite" aria-atomic="true">
+              {getStatusText()}
+            </p>
+            {(paymentStatus === 'processing' || paymentStatus === 'pending') && (
+              <p className="text-xs text-gray-500 mt-0.5" aria-live="polite">
+                {getStatusDescription()}
+              </p>
+            )}
           </div>
         </div>
         {paymentStatus === 'idle' && (
           <button
             onClick={checkBalanceAndEstimateFee}
             disabled={isCheckingBalance}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
             aria-label="Refresh balance and fee estimate"
           >
             <RefreshCw className={`w-5 h-5 ${isCheckingBalance ? 'animate-spin' : ''}`} aria-hidden="true" />
