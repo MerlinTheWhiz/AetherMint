@@ -73,6 +73,10 @@ pub mod credentials;
 #[cfg(test)]
 mod credentials_test;
 
+pub mod credential_events;
+#[cfg(test)]
+mod credential_events_test;
+
 pub mod credential_registry;
 pub mod dynamic_nft;
 #[cfg(test)]
@@ -297,21 +301,16 @@ impl AetherMintContract {
         credential_id
     }
 
-    /// Verify a credential using packed timestamp
-    pub fn verify_credential(env: Env, credential_id: u64) -> bool {
-        let _admin: Address = env.storage().instance()
-            .get(&DataKey::Admin)
-            .unwrap_or_else(|| panic!("Admin not found"));
-        
-        let mut credential: Credential = env.storage().instance()
-            .get(&DataKey::Credential(credential_id))
-            .unwrap_or_else(|| panic!("Credential not found"));
-
-        // Clear revocation bit (bit 0)
-        credential.timestamp &= !1u64;
-        env.storage().instance().set(&DataKey::Credential(credential_id), &credential);
-
-        true
+    /// Verify a credential using packed timestamp.
+    ///
+    /// Accepts a `verifier` address so verifications are recorded in the
+    /// credential lifecycle event log for full auditability. This wrapper
+    /// delegates to [`crate::credentials::verify_credential`]; callers must
+    /// have issued the credential through the same `credentials` module
+    /// (which uses the `CredentialKey` / `"admin"` storage namespace) for
+    /// verification to succeed.
+    pub fn verify_credential(env: Env, credential_id: u64, verifier: Address) -> bool {
+        crate::credentials::verify_credential(&env, credential_id, verifier)
     }
 
     /// Get credential details

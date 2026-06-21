@@ -1,3 +1,6 @@
+use crate::credential_events::{
+    publish_credential_event, CredentialLifecycleEvent,
+};
 use crate::utils::storage::{EntityType, StorageUtils};
 use soroban_sdk::{contracttype, Address, Env, String, Symbol, Vec};
 
@@ -145,10 +148,13 @@ pub fn issue_credential_with_expiration(
         .instance()
         .set(&CredentialRegistryKey::CredentialCount, &credential_id);
 
-    // Emit event
-    env.events().publish(
-        (Symbol::new(env, "credential"), Symbol::new(env, "issued")),
-        (credential_id, issuer.clone()),
+    // Emit credential lifecycle event with consistent
+    // (credential_id, actor, timestamp) payload and queryable record.
+    publish_credential_event(
+        env,
+        CredentialLifecycleEvent::Issued,
+        credential_id,
+        issuer,
     );
 
     credential_id
@@ -225,10 +231,13 @@ pub fn renew_credential(
         &credential,
     );
 
-    // Emit renewal event
-    env.events().publish(
-        (Symbol::new(env, "credential"), Symbol::new(env, "renewed")),
-        (credential_id, renewer, extension_duration),
+    // Emit credential lifecycle event with consistent
+    // (credential_id, actor, timestamp) payload and queryable record.
+    publish_credential_event(
+        env,
+        CredentialLifecycleEvent::Renewed,
+        credential_id,
+        renewer,
     );
 
     true
@@ -270,10 +279,15 @@ pub fn check_credential_expiration(env: &Env, credential_id: u64) -> CredentialS
             .instance()
             .set(&CredentialRegistryKey::ExpiredCredentials, &expired_creds);
 
-        // Emit expiration event
-        env.events().publish(
-            (Symbol::new(env, "credential"), Symbol::new(env, "expired")),
-            (credential_id, current_time),
+        // Emit credential lifecycle event with consistent
+        // (credential_id, actor, timestamp) payload and queryable record.
+        // `current_time` was sampled above; we surface the contract as the
+        // actor since cron-style expiration is system-driven.
+        publish_credential_event(
+            env,
+            CredentialLifecycleEvent::Expired,
+            credential_id,
+            env.current_contract_address(),
         );
     }
 
@@ -356,10 +370,13 @@ pub fn revoke_credential(env: &Env, credential_id: u64, revoker: Address) -> boo
         &credential,
     );
 
-    // Emit revocation event
-    env.events().publish(
-        (Symbol::new(env, "credential"), Symbol::new(env, "revoked")),
-        (credential_id, revoker),
+    // Emit credential lifecycle event with consistent
+    // (credential_id, actor, timestamp) payload and queryable record.
+    publish_credential_event(
+        env,
+        CredentialLifecycleEvent::Revoked,
+        credential_id,
+        revoker,
     );
 
     true
