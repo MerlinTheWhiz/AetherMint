@@ -9,7 +9,6 @@ repository = "https://github.com/jobbykings/aethermint-education"
 
 [lib]
 crate-type = ["cdylib"]
-path = "src/lib_minimal.rs"
 
 [dependencies]
 soroban-sdk = "=26.1.0"
