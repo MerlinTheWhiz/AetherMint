@@ -29,9 +29,42 @@ body {
   box-sizing: border-box;
 }
 
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.24);
+}
+
 img, video, canvas, svg {
   max-width: 100%;
   height: auto;
+}
+
+.skip-to-content {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 9999;
+  transform: translateY(-150%);
+  border-radius: 0.5rem;
+  background: #1d4ed8;
+  color: #ffffff;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  transition: transform 150ms ease;
+}
+
+.skip-to-content:focus,
+.skip-to-content:focus-visible {
+  transform: translateY(0);
 }
 
 /* Touch target minimum 44x44px */
