@@ -5,6 +5,7 @@ import { PaymentProcessorProps, PaymentDetails, TransactionReceipt } from '@/typ
 import { stellarService, createEnrollmentMemo, formatStellarBalance } from '@/lib/stellar';
 import { env } from '@/lib/env';
 import { WalletsKit, MAINNET, TESTNET } from '@creit.tech/stellar-wallets-kit';
+import toast from 'react-hot-toast';
 import { 
   CreditCard, 
   AlertCircle, 
@@ -62,6 +63,7 @@ const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
     } catch (error) {
       console.error('Error checking balance:', error);
       setError('Failed to check account balance');
+      toast.error('Failed to check account balance. Please try again.', { duration: 5000 });
     } finally {
       setIsCheckingBalance(false);
     }
@@ -122,6 +124,24 @@ const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
       setError(errorMessage);
       setPaymentStatus('failed');
       onPaymentError(errorMessage);
+
+      // Show contextual toast for payment errors
+      if (errorMessage.toLowerCase().includes('network') || 
+          errorMessage.toLowerCase().includes('timeout') ||
+          errorMessage.toLowerCase().includes('fetch')) {
+        toast.error('Network error: Unable to process payment. Please check your connection.', {
+          duration: 6000,
+        });
+      } else if (errorMessage.toLowerCase().includes('insufficient') || 
+                 errorMessage.toLowerCase().includes('balance')) {
+        toast.error('Insufficient balance to complete this transaction.', { duration: 5000 });
+      } else if (errorMessage.toLowerCase().includes('rejected') || 
+                 errorMessage.toLowerCase().includes('denied') ||
+                 errorMessage.toLowerCase().includes('cancel')) {
+        toast.error('Payment was rejected or cancelled.', { duration: 4000 });
+      } else {
+        toast.error(`Payment error: ${errorMessage}`, { duration: 5000 });
+      }
     }
   };
 
