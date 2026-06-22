@@ -2,6 +2,10 @@ use crate::credential_events::{
     publish_credential_event, CredentialLifecycleEvent,
 };
 use crate::utils::storage::{EntityType, StorageUtils};
+use crate::utils::validation::{
+    validate_duration, validate_non_zero_address, validate_string_length, MAX_DESCRIPTION_LENGTH,
+    MAX_SHORT_TEXT_LENGTH, MAX_TITLE_LENGTH, MAX_URI_LENGTH,
+};
 use soroban_sdk::{contracttype, Address, Env, String, Symbol, Vec};
 
 /// Credential status enumeration
@@ -60,7 +64,8 @@ pub enum CredentialRegistryKey {
     UserCredentials(Address),
     CredentialCount,
     ExpiredCredentials,
-    RenewalHistory(u64), // credential_id -> Vec<RenewalRecord>
+    RenewalHistory(u64),    // credential_id -> Vec<RenewalRecord>
+    AttestationCount(u64),  // credential_id -> number of active attestations
 }
 
 /// Renewal record for tracking credential renewals
@@ -96,6 +101,14 @@ pub fn issue_credential_with_expiration(
     validity_duration: u64, // Duration in seconds from issuance
 ) -> u64 {
     issuer.require_auth();
+
+    // Validate inputs before any state access (issue #117).
+    validate_non_zero_address(env, &recipient);
+    validate_string_length(env, &title, MAX_TITLE_LENGTH);
+    validate_string_length(env, &description, MAX_DESCRIPTION_LENGTH);
+    validate_string_length(env, &course_id, MAX_SHORT_TEXT_LENGTH);
+    validate_string_length(env, &ipfs_hash, MAX_URI_LENGTH);
+    validate_duration(env, validity_duration);
 
     let admin: Address = env
         .storage()
@@ -168,6 +181,9 @@ pub fn renew_credential(
     extension_duration: u64,
 ) -> bool {
     renewer.require_auth();
+
+    // Validate the extension window before any state access (issue #117).
+    validate_duration(env, extension_duration);
 
     let mut credential: CredentialRegistry = env
         .storage()
@@ -394,6 +410,46 @@ pub fn get_credential_count(env: &Env) -> u64 {
 pub fn is_credential_valid(env: &Env, credential_id: u64) -> bool {
     let credential = get_credential(env, credential_id);
     matches!(credential.status, CredentialStatus::Active)
+}
+
+/// Whether a credential with `credential_id` exists in the registry.
+pub fn credential_exists(env: &Env, credential_id: u64) -> bool {
+    env.storage()
+        .persistent()
+        .has(&CredentialRegistryKey::Credential(credential_id))
+}
+
+// ===== Attestation tracking (issue #122 integration) =====
+
+/// Number of active attestations recorded against a credential.
+pub fn get_attestation_count(env: &Env, credential_id: u64) -> u32 {
+    env.storage()
+        .persistent()
+        .get(&CredentialRegistryKey::AttestationCount(credential_id))
+        .unwrap_or(0)
+}
+
+/// Increment a credential's attestation count. Called by the attestation
+/// protocol when a new attestation is recorded.
+pub fn increment_attestation_count(env: &Env, credential_id: u64) -> u32 {
+    let count = get_attestation_count(env, credential_id) + 1;
+    env.storage().persistent().set(
+        &CredentialRegistryKey::AttestationCount(credential_id),
+        &count,
+    );
+    count
+}
+
+/// Decrement a credential's attestation count (saturating at 0). Called by the
+/// attestation protocol when an attestation is revoked.
+pub fn decrement_attestation_count(env: &Env, credential_id: u64) -> u32 {
+    let current = get_attestation_count(env, credential_id);
+    let count = current.saturating_sub(1);
+    env.storage().persistent().set(
+        &CredentialRegistryKey::AttestationCount(credential_id),
+        &count,
+    );
+    count
 }
 
 /// Get credentials expiring within a time window

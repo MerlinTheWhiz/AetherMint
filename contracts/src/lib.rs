@@ -1,5 +1,10 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Bytes, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Bytes, BytesN, Env, String, Vec};
+
+use crate::utils::validation::{
+    validate_non_zero_address, validate_positive_u64, validate_string_length,
+    MAX_DESCRIPTION_LENGTH, MAX_SHORT_TEXT_LENGTH, MAX_TITLE_LENGTH, MAX_URI_LENGTH,
+};
 
 /// Helper: convert u64 to Soroban String without format! macro
 pub fn u64_to_string(env: &Env, num: u64, prefix: &str) -> String {
@@ -82,13 +87,17 @@ pub mod dynamic_nft;
 #[cfg(test)]
 mod dynamic_nft_test;
 
+pub mod attestation_protocol;
+#[cfg(test)]
+mod attestation_protocol_test;
+
 // Modules commented out to avoid duplicate contract symbol conflicts
 // These should be in separate crates or behind feature flags
 // pub mod time_lock_credential;
 // pub mod vrf_system;
 // pub mod progress;
 // pub mod event_logger;
-// pub mod user_profile;
+pub mod user_profile;
 // pub mod analyticsStorage;
 // pub mod consciousness;
 // pub mod courseMetadata;
@@ -244,10 +253,12 @@ pub struct AetherMintContract;
 impl AetherMintContract {
     /// Initialize the contract with optimized storage
     pub fn initialize(env: Env, admin: Address) {
+        validate_non_zero_address(&env, &admin);
+
         if env.storage().instance().has(&DataKey::Admin) {
             panic!("Contract already initialized");
         }
-        
+
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::CredentialCount, &0u64);
         env.storage().instance().set(&DataKey::CourseCount, &0u64);
@@ -264,6 +275,13 @@ impl AetherMintContract {
         course_id: String,
         ipfs_hash: String,
     ) -> u64 {
+        // Validate inputs before any state access (issue #117).
+        validate_non_zero_address(&env, &recipient);
+        validate_string_length(&env, &title, MAX_TITLE_LENGTH);
+        validate_string_length(&env, &description, MAX_DESCRIPTION_LENGTH);
+        validate_string_length(&env, &course_id, MAX_SHORT_TEXT_LENGTH);
+        validate_string_length(&env, &ipfs_hash, MAX_URI_LENGTH);
+
         let admin: Address = env.storage().instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("Admin not found"));
@@ -328,6 +346,11 @@ impl AetherMintContract {
         description: String,
         price: u64,
     ) -> u64 {
+        // Validate inputs before any state access (issue #117).
+        validate_string_length(&env, &title, MAX_TITLE_LENGTH);
+        validate_string_length(&env, &description, MAX_DESCRIPTION_LENGTH);
+        validate_positive_u64(&env, price);
+
         let admin: Address = env.storage().instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("Admin not found"));
@@ -543,5 +566,76 @@ impl AetherMintContract {
     /// Get balance of owner
     pub fn balance_of(env: Env, owner: Address) -> u64 {
         dynamic_nft::balance_of(&env, owner)
+    }
+
+    // ===== Attestation Protocol (issue #122) =====
+
+    /// Register a third-party verifier (attester).
+    pub fn register_attester(
+        env: Env,
+        attester_address: Address,
+        institution_name: String,
+        verification_key: BytesN<32>,
+    ) {
+        attestation_protocol::register_attester(
+            &env,
+            attester_address,
+            institution_name,
+            verification_key,
+        )
+    }
+
+    /// Attest to a credential's validity as a registered attester.
+    pub fn attest_credential(
+        env: Env,
+        attester: Address,
+        credential_id: u64,
+        signature: BytesN<64>,
+        metadata: String,
+    ) {
+        attestation_protocol::attest_credential(&env, attester, credential_id, signature, metadata)
+    }
+
+    /// Withdraw an attestation previously made by `attester`.
+    pub fn revoke_attestation(env: Env, attester: Address, credential_id: u64) {
+        attestation_protocol::revoke_attestation(&env, attester, credential_id)
+    }
+
+    /// Get all attestations recorded for a credential.
+    pub fn get_attestations(
+        env: Env,
+        credential_id: u64,
+    ) -> Vec<attestation_protocol::CredentialAttestation> {
+        attestation_protocol::get_attestations(&env, credential_id)
+    }
+
+    /// Check whether a specific attester has attested to a credential.
+    pub fn is_attested_by(env: Env, credential_id: u64, attester: Address) -> bool {
+        attestation_protocol::is_attested_by(&env, credential_id, attester)
+    }
+
+    /// Get an attester's profile.
+    pub fn get_attester(env: Env, attester_address: Address) -> attestation_protocol::Attester {
+        attestation_protocol::get_attester(&env, attester_address)
+    }
+
+    /// Whether an address is a registered attester.
+    pub fn is_registered_attester(env: Env, attester_address: Address) -> bool {
+        attestation_protocol::is_registered_attester(&env, attester_address)
+    }
+
+    /// Admin-only: deactivate an attester.
+    pub fn deactivate_attester(env: Env, admin: Address, attester_address: Address) {
+        attestation_protocol::deactivate_attester(&env, admin, attester_address)
+    }
+
+    /// Admin-only: re-activate a deactivated attester.
+    pub fn reactivate_attester(env: Env, admin: Address, attester_address: Address) {
+        attestation_protocol::reactivate_attester(&env, admin, attester_address)
+    }
+
+    /// Number of active attestations recorded against a credential.
+    pub fn get_attestation_count(env: Env, credential_id: u64) -> u32 {
+        credential_registry::get_attestation_count(&env, credential_id)
     }
 }

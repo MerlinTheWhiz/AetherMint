@@ -103,4 +103,8 @@ prof/
 .LSOverride
 ehthumbs.db
 
-contracts/targetcontracts/Cargo.lock
+contracts/target
+contracts/Cargo.lock
+
+# Soroban-generated test snapshots
+contracts/test_snapshots/
