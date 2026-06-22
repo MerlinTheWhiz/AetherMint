@@ -98,30 +98,80 @@ router.get("/performance", analyticsController.getPerformanceMetrics);
 
 /**
  * @openapi
- * /api/analytics/custom:
- *   post:
+ * /api/analytics/platform:
+ *   get:
  *     tags: [Analytics]
- *     summary: Run custom analytics query
+ *     summary: Get platform analytics
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       '200':
- *         description: Query results
+ *         description: Platform analytics retrieved
  */
-router.post("/custom", analyticsController.runCustomQuery);
+router.get("/platform", analyticsController.getPlatformAnalytics);
 
 /**
  * @openapi
- * /api/analytics/export:
- *   post:
+ * /api/analytics/time/{userId}:
+ *   get:
  *     tags: [Analytics]
- *     summary: Export analytics report
- *     security:
- *       - bearerAuth: []
+ *     summary: Get time analysis for user
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
  *     responses:
  *       '200':
- *         description: Report exported
+ *         description: Time analysis retrieved
  */
-router.post("/export", analyticsController.exportReport);
+router.get("/time/:userId", analyticsController.getTimeAnalysis);
+
+/**
+ * @openapi
+ * /api/analytics/completion/{userId}:
+ *   get:
+ *     tags: [Analytics]
+ *     summary: Get completion stats for user
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *     responses:
+ *       '200':
+ *         description: Completion stats retrieved
+ */
+router.get("/completion/:userId", analyticsController.getCompletionStats);
+
+/**
+ * @openapi
+ * /api/analytics/achievements/{userId}:
+ *   get:
+ *     tags: [Analytics]
+ *     summary: Get achievements for user
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *     responses:
+ *       '200':
+ *         description: Achievements retrieved
+ */
+router.get("/achievements/:userId", analyticsController.getAchievements);
+
+/**
+ * @openapi
+ * /api/analytics/progress/{userId}:
+ *   get:
+ *     tags: [Analytics]
+ *     summary: Get progress data for user
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *     responses:
+ *       '200':
+ *         description: Progress data retrieved
+ */
+router.get("/progress/:userId", analyticsController.getProgressData);
 
 module.exports = router;

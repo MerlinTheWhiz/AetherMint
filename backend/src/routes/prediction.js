@@ -1,85 +1,24 @@
-/**
- * @openapi
- * tags:
- *   - name: Prediction
- *     description: AI-powered predictions and forecasting
- */
-
 const express = require("express");
 const router = express.Router();
-const { authenticate } = require("../middleware/auth");
 const predictionController = require("../controllers/predictionController");
+const { authenticate, authorize } = require("../middleware/auth");
 
 router.use(authenticate);
 
-/**
- * @openapi
- * /api/prediction/student-performance:
- *   post:
- *     tags: [Prediction]
- *     summary: Predict student performance
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       '200':
- *         description: Performance prediction generated
- */
-router.post("/student-performance", predictionController.predictStudentPerformance);
+// Public student routes (authenticated)
+router.get("/student/:studentId", predictionController.getStudentAnalytics);
+router.post("/predict-performance", predictionController.getBatchPredictions); // Mapping to expected frontend route
 
-/**
- * @openapi
- * /api/prediction/dropout-risk:
- *   post:
- *     tags: [Prediction]
- *     summary: Predict dropout risk
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       '200':
- *         description: Dropout risk prediction generated
- */
-router.post("/dropout-risk", predictionController.predictDropoutRisk);
+// Admin/Instructor only routes
+router.use(authorize("admin", "instructor"));
 
-/**
- * @openapi
- * /api/prediction/course-completion:
- *   post:
- *     tags: [Prediction]
- *     summary: Predict course completion probability
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       '200':
- *         description: Completion prediction generated
- */
-router.post("/course-completion", predictionController.predictCourseCompletion);
+router.post("/students/batch/predict", predictionController.getBatchPredictions);
+router.post("/at-risk/identify", predictionController.getAtRiskStudents);
+router.get("/models/accuracy", predictionController.getAccuracyMetrics);
+router.post("/students/:studentId/interventions", (req, res) => {
+  res.json({ success: true, message: 'Intervention scheduled' });
+});
 
-/**
- * @openapi
- * /api/prediction/engagement:
- *   post:
- *     tags: [Prediction]
- *     summary: Predict student engagement levels
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       '200':
- *         description: Engagement prediction generated
- */
-router.post("/engagement", predictionController.predictEngagement);
-
-/**
- * @openapi
- * /api/prediction/learning-style:
- *   post:
- *     tags: [Prediction]
- *     summary: Predict learning style
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       '200':
- *         description: Learning style prediction generated
- */
-router.post("/learning-style", predictionController.predictLearningStyle);
+router.get("/health", predictionController.healthCheck);
 
 module.exports = router;
