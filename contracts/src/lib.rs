@@ -2,6 +2,7 @@
 extern crate alloc;
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Bytes, BytesN, Env, String, Vec};
 
+use crate::credential_registry::{BatchCredentialParams, MAX_BATCH_SIZE};
 use crate::utils::validation::{
     validate_non_zero_address, validate_positive_u64, validate_string_length,
     MAX_DESCRIPTION_LENGTH, MAX_SHORT_TEXT_LENGTH, MAX_TITLE_LENGTH, MAX_URI_LENGTH,
@@ -84,6 +85,8 @@ pub mod credential_events;
 // mod credential_events_test;
 
 pub mod credential_registry;
+#[cfg(test)]
+mod credential_registry_test;
 pub mod dynamic_nft;
 #[cfg(test)]
 mod dynamic_nft_test;
@@ -131,6 +134,13 @@ pub mod governance;
 mod governance_test;
 
 pub mod utils;
+
+// pub mod dna_storage;
+// pub mod dna_services;
+// #[cfg(test)]
+// mod dna_storage_test;
+// #[cfg(test)]
+// mod dna_storage_checkpoint_test;
 
 
 /// Optimized user profile with packed storage
@@ -642,6 +652,24 @@ impl AetherMintContract {
     /// Number of active attestations recorded against a credential.
     pub fn get_attestation_count(env: Env, credential_id: u64) -> u32 {
         credential_registry::get_attestation_count(&env, credential_id)
+    }
+
+    /// Issue multiple credentials in a single transaction (issue #118).
+    ///
+    /// Performs one authorization check for the issuer and stores every
+    /// credential atomically — if any validation fails the whole batch rolls
+    /// back. Returns the newly created credential IDs in input order.
+    pub fn issue_credentials_batch(
+        env: Env,
+        issuer: Address,
+        params: Vec<BatchCredentialParams>,
+    ) -> Vec<u64> {
+        credential_registry::issue_credentials_batch(&env, issuer, params)
+    }
+
+    /// Return the maximum number of credentials allowed in a single batch.
+    pub fn max_batch_size(_env: Env) -> u32 {
+        MAX_BATCH_SIZE
     }
 
     // ===== Governance Functions =====

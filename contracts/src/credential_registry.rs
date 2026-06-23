@@ -475,3 +475,136 @@ pub fn get_credentials_expiring_soon(env: &Env, within_seconds: u64) -> Vec<u64>
 
     expiring_soon
 }
+
+// ===== Batch issuance (issue #118) =====
+
+/// Parameters for a single credential in a batch issuance request.
+#[contracttype]
+#[derive(Clone)]
+pub struct BatchCredentialParams {
+    pub recipient: Address,
+    pub title: String,
+    pub description: String,
+    pub course_id: String,
+    pub ipfs_hash: String,
+    pub validity_duration: u64,
+}
+
+/// Maximum number of credentials that can be issued in a single batch.
+/// Prevents unbounded gas consumption.
+pub const MAX_BATCH_SIZE: u32 = 50;
+
+/// Issue multiple credentials in a single transaction with one authorization
+/// check for the issuer. Returns a vector of the newly created credential IDs
+/// in the same order as the input params.
+///
+/// Semantics: all-or-nothing. If any param fails validation the entire call
+/// panics and no credentials are stored (Soroban's atomic transaction model
+/// guarantees the rollback).
+///
+/// Edge cases handled:
+/// - Empty batch → panic (no-op batch is almost certainly a caller bug)
+/// - Single credential → works identically to issue_credential_with_expiration
+/// - Batch larger than MAX_BATCH_SIZE → panic
+pub fn issue_credentials_batch(
+    env: &Env,
+    issuer: Address,
+    params: Vec<BatchCredentialParams>,
+) -> Vec<u64> {
+    // Single auth check covers the entire batch.
+    issuer.require_auth();
+
+    let batch_len = params.len();
+
+    // Reject empty batch.
+    if batch_len == 0 {
+        panic!("Batch must contain at least one credential");
+    }
+
+    // Enforce maximum batch size.
+    if batch_len > MAX_BATCH_SIZE {
+        panic!("Batch size exceeds maximum allowed limit");
+    }
+
+    // Verify issuer is the admin.
+    let admin: Address = env
+        .storage()
+        .instance()
+        .get(&Symbol::new(env, "admin"))
+        .unwrap_or_else(|| panic!("Admin not found"));
+
+    if issuer != admin {
+        panic!("Unauthorized issuer");
+    }
+
+    // Validate all params up-front before touching storage (all-or-nothing).
+    for i in 0..batch_len {
+        let p = params.get(i).unwrap();
+        validate_non_zero_address(env, &p.recipient);
+        validate_string_length(env, &p.title, MAX_TITLE_LENGTH);
+        validate_string_length(env, &p.description, MAX_DESCRIPTION_LENGTH);
+        validate_string_length(env, &p.course_id, MAX_SHORT_TEXT_LENGTH);
+        validate_string_length(env, &p.ipfs_hash, MAX_URI_LENGTH);
+        validate_duration(env, p.validity_duration);
+    }
+
+    let current_time = env.ledger().timestamp();
+    let mut credential_ids: Vec<u64> = Vec::new(env);
+
+    for i in 0..batch_len {
+        let p = params.get(i).unwrap();
+        let credential_id = StorageUtils::get_next_id(env, EntityType::Credential);
+
+        let credential = CredentialRegistry {
+            id: credential_id,
+            issuer: issuer.clone(),
+            recipient: p.recipient.clone(),
+            title: p.title.clone(),
+            description: p.description.clone(),
+            course_id: p.course_id.clone(),
+            issued_at: current_time,
+            expires_at: current_time + p.validity_duration,
+            status: CredentialStatus::Active,
+            ipfs_hash: p.ipfs_hash.clone(),
+            renewal_count: 0,
+            last_renewed_at: None,
+        };
+
+        // Store credential.
+        env.storage().persistent().set(
+            &CredentialRegistryKey::Credential(credential_id),
+            &credential,
+        );
+
+        // Append to recipient's credential list.
+        let mut user_creds: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get(&CredentialRegistryKey::UserCredentials(p.recipient.clone()))
+            .unwrap_or_else(|| Vec::new(env));
+        user_creds.push_back(credential_id);
+        env.storage().persistent().set(
+            &CredentialRegistryKey::UserCredentials(p.recipient.clone()),
+            &user_creds,
+        );
+
+        // Update the global credential count after each credential so
+        // StorageUtils::get_next_id stays consistent.
+        env.storage()
+            .instance()
+            .set(&CredentialRegistryKey::CredentialCount, &credential_id);
+
+        // Emit lifecycle event for each credential individually so
+        // off-chain indexers see every issuance.
+        publish_credential_event(
+            env,
+            CredentialLifecycleEvent::Issued,
+            credential_id,
+            issuer.clone(),
+        );
+
+        credential_ids.push_back(credential_id);
+    }
+
+    credential_ids
+}
