@@ -16,6 +16,7 @@ import * as path from 'path';
 // @ts-ignore
 import SecureRealtimeCommunication from './services/secureRealtimeCommunication';
 import { swaggerSpec } from './config/swagger';
+import { openApiSpec } from './docs/openapi';
 import { Migrator } from './utils/migrate';
 
 // @ts-ignore
@@ -127,10 +128,34 @@ app.use(detectSuspiciousPatterns);
 // NEW/Updated: Sanitize all inputs
 app.use(requestSanitizer);
 
-// Serve Swagger UI at /api-docs
+// ── OpenAPI documentation endpoints ────────────────────────────────────────
+
+// Primary interactive Swagger UI  →  GET /api/docs
+app.use(
+  '/api/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openApiSpec, {
+    explorer: true,
+    customSiteTitle: 'AetherMint API Docs',
+    customCss: '.swagger-ui .topbar { background-color: #1a1a2e; }',
+    swaggerOptions: {
+      docExpansion: 'list',
+      filter: true,
+      showRequestDuration: true,
+    },
+  }),
+);
+
+// Raw OpenAPI JSON spec  →  GET /api/docs/json
+app.get('/api/docs/json', (_req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(openApiSpec);
+});
+
+// Legacy alias kept for backward-compat  →  GET /api-docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true,
-  customSiteTitle: 'AetherMint API Docs',
+  customSiteTitle: 'AetherMint API Docs (legacy)',
 }));
 
 // Every API request receives a global per-IP limit plus the applicable
@@ -192,11 +217,16 @@ app.use('/api/cross-protocol-bridge', crossProtocolBridgeRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
   res.json({
     message: 'AetherMint Education Backend API',
     version: '1.0.0',
     status: 'running',
     timestamp: new Date().toISOString(),
+    documentation: {
+      ui: `${baseUrl}/api/docs`,
+      json: `${baseUrl}/api/docs/json`,
+    },
   });
 });
 
