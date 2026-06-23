@@ -45,7 +45,7 @@ fn test_issue_and_verify_credential() {
     assert!(revoked_cred.is_revoked());
 
     // Verify should now return false
-    assert!(!verify_credential(&env, cred_id, verifier));
+    assert!(!verify_credential(&env, cred_id, verifier.clone()));
 
     // User credential list
     let user_creds: Vec<u64> = get_user_credentials(&env, recipient);

@@ -76,7 +76,7 @@ pub struct VisualTraits {
 
 /// Evolution stages
 #[contracttype]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum EvolutionStage {
     Novice = 0,
     Apprentice = 1,
@@ -88,7 +88,7 @@ pub enum EvolutionStage {
 
 /// Rarity tiers for visual representation
 #[contracttype]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RarityTier {
     Common = 0,
     Uncommon = 1,

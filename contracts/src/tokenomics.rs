@@ -1,5 +1,5 @@
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Env, String,
+    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Vec,
 };
 
 #[contracttype]
@@ -209,5 +209,39 @@ impl TokenomicsContract {
 
     pub fn total_supply(env: Env, token_type: u32) -> u64 {
         env.storage().instance().get(&TokenomicsKey::TotalSupply(token_type)).unwrap_or(0)
+    }
+
+    /// Calculate voting power for governance based on token holdings and staking.
+    /// voting_power = sqrt(reward_balance) + governance_balance + stake_amount / 100
+    pub fn calculate_voting_power(env: Env, voter: Address) -> i128 {
+        let reward_balance = Self::get_token_balance(env.clone(), voter.clone(), 0u32) as i128;
+        let gov_balance = Self::get_token_balance(env.clone(), voter.clone(), 1u32) as i128;
+
+        let stake: Option<Stake> = env.storage()
+            .persistent()
+            .get(&TokenomicsKey::StakePool(voter.clone()));
+        let stake_amount = match stake {
+            Some(s) => s.amount as i128,
+            None => 0i128,
+        };
+
+        let sqrt_reward = Self::integer_sqrt(reward_balance);
+        sqrt_reward + gov_balance + (stake_amount / 100)
+    }
+
+    fn integer_sqrt(n: i128) -> i128 {
+        if n < 0 {
+            return 0;
+        }
+        if n < 2 {
+            return n;
+        }
+        let mut x = n / 2;
+        let mut y = (x + n / x) / 2;
+        while y < x {
+            x = y;
+            y = (x + n / x) / 2;
+        }
+        x
     }
 }
