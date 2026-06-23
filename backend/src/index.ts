@@ -14,6 +14,7 @@ import { initCollaborationService } from './services/initCollaboration';
 // @ts-ignore
 import SecureRealtimeCommunication from './services/secureRealtimeCommunication';
 import { swaggerSpec } from './config/swagger';
+import { Migrator } from './utils/migrate';
 
 // @ts-ignore
 import * as transactionQueue from './services/transactionQueue';
@@ -232,6 +233,18 @@ async function startServer() {
     await (transactionQueue as any).startProcessing();
     await (transactionProcessor as any).start();
     await (transactionEvents as any).startListening();
+
+    if (process.env.AUTO_MIGRATE === 'true') {
+      logger.info('Auto-running pending migrations...');
+      const migrator = new Migrator();
+      try {
+        await migrator.up();
+      } catch (err) {
+        logger.error('Auto-migration failed', err as Error);
+      } finally {
+        await migrator.close();
+      }
+    }
 
     server.listen(PORT, () => {
       logger.info('AetherMint Education Backend started', {
