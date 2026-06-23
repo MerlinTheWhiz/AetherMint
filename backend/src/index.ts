@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express, { Application } from 'express';
 import { createServer } from 'http';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import { Redis } from 'ioredis';
@@ -16,6 +16,7 @@ import * as path from 'path';
 // @ts-ignore
 import SecureRealtimeCommunication from './services/secureRealtimeCommunication';
 import { swaggerSpec } from './config/swagger';
+import { Migrator } from './utils/migrate';
 
 // @ts-ignore
 import * as transactionQueue from './services/transactionQueue';
@@ -35,10 +36,7 @@ import {
 } from './middleware/security';
 import { detectSuspiciousPatterns } from './middleware/sanitizer';
 // @ts-ignore
-import { globalLimiter } from './middleware/rateLimiter';
-
-// Load environment variables
-dotenv.config();
+import { tieredRateLimiter, transactionLimiter } from './middleware/rateLimiter';
 
 // Connect to Redis
 connectRedis();
@@ -135,13 +133,17 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customSiteTitle: 'AetherMint API Docs',
 }));
 
+// Every API request receives a global per-IP limit plus the applicable
+// public, authenticated-user, or admin tier.
+app.use('/api', tieredRateLimiter);
+
 // API routes
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/events', eventLoggerRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/rbac', rbacRoutes);
-app.use('/api/transactions', transactionRoutes);
+app.use('/api/transactions', transactionLimiter, transactionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/holographic', holographicRoutes);
@@ -248,6 +250,18 @@ async function startServer() {
     await (transactionQueue as any).startProcessing();
     await (transactionProcessor as any).start();
     await (transactionEvents as any).startListening();
+
+    if (process.env.AUTO_MIGRATE === 'true') {
+      logger.info('Auto-running pending migrations...');
+      const migrator = new Migrator();
+      try {
+        await migrator.up();
+      } catch (err) {
+        logger.error('Auto-migration failed', err as Error);
+      } finally {
+        await migrator.close();
+      }
+    }
 
     server.listen(PORT, () => {
       logger.info('AetherMint Education Backend started', {

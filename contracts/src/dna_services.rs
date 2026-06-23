@@ -546,3 +546,50 @@ fn verify_blockchain_reference(env: &Env, reference: &String) -> bool {
     // Simplified blockchain verification
     !reference.is_empty() && reference.len() > 10
 }
+
+// ===== Integrity Verification Service =====
+
+/// Result of an integrity verification pass.
+#[contracttype]
+#[derive(Clone)]
+pub struct IntegrityReport {
+    pub total_credentials: u64,
+    pub valid_count: u64,
+    pub invalid_count: u64,
+    pub is_healthy: bool,
+}
+
+/// Verify the integrity of all DNA credentials currently in storage.
+/// For each credential, re-decodes the DNA sequence and re-computes the hash,
+/// comparing against the stored `integrity_hash`.
+pub fn verify_integrity(env: &Env) -> IntegrityReport {
+    let count: u64 = env
+        .storage()
+        .instance()
+        .get(&DNAStorageKey::DNACredentialCount)
+        .unwrap_or(0);
+
+    let mut valid: u64 = 0;
+    let mut invalid: u64 = 0;
+
+    for i in 1..=count {
+        if env
+            .storage()
+            .persistent()
+            .has(&DNAStorageKey::DNACredential(i))
+        {
+            if verify_dna_credential(env, i) {
+                valid += 1;
+            } else {
+                invalid += 1;
+            }
+        }
+    }
+
+    IntegrityReport {
+        total_credentials: valid + invalid,
+        valid_count: valid,
+        invalid_count: invalid,
+        is_healthy: invalid == 0,
+    }
+}

@@ -127,6 +127,13 @@ mod syncCoordination_test;
 
 pub mod utils;
 
+pub mod dna_storage;
+pub mod dna_services;
+#[cfg(test)]
+mod dna_storage_test;
+#[cfg(test)]
+mod dna_storage_checkpoint_test;
+
 
 /// Optimized user profile with packed storage
 #[contracttype]
@@ -637,5 +644,59 @@ impl AetherMintContract {
     /// Number of active attestations recorded against a credential.
     pub fn get_attestation_count(env: Env, credential_id: u64) -> u32 {
         credential_registry::get_attestation_count(&env, credential_id)
+    }
+
+    // ===== DNA Checkpoint / Recovery =====
+
+    /// Create a checkpoint of the current DNA storage state.
+    pub fn create_dna_checkpoint(env: Env, admin: Address, label: String) -> u64 {
+        admin.require_auth();
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic!("Admin not found"));
+        if admin != stored_admin {
+            panic!("Only admin can create checkpoints");
+        }
+        dna_storage::create_checkpoint(&env, label)
+    }
+
+    /// Restore DNA storage to a previous checkpoint.
+    pub fn restore_dna_checkpoint(env: Env, admin: Address, checkpoint_id: u64) -> bool {
+        admin.require_auth();
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic!("Admin not found"));
+        if admin != stored_admin {
+            panic!("Only admin can restore checkpoints");
+        }
+        dna_storage::restore_checkpoint(&env, checkpoint_id)
+    }
+
+    /// List all available checkpoints with metadata.
+    pub fn list_dna_checkpoints(env: Env) -> Vec<dna_storage::CheckpointMeta> {
+        dna_storage::list_checkpoints(&env)
+    }
+
+    /// Delete a checkpoint (admin only).
+    pub fn delete_dna_checkpoint(env: Env, admin: Address, checkpoint_id: u64) -> bool {
+        admin.require_auth();
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .unwrap_or_else(|| panic!("Admin not found"));
+        if admin != stored_admin {
+            panic!("Only admin can delete checkpoints");
+        }
+        dna_storage::delete_checkpoint(&env, checkpoint_id)
+    }
+
+    /// Verify integrity of all DNA-stored credentials.
+    pub fn verify_dna_integrity(env: Env) -> dna_services::IntegrityReport {
+        dna_services::verify_integrity(&env)
     }
 }

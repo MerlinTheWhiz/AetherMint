@@ -593,3 +593,213 @@ fn remove_hybrid_correction(env: &Env, data: &Vec<u8>) -> Vec<u8> {
     let without_rs = remove_reed_solomon(env, data);
     remove_parity_bits(env, &without_rs)
 }
+
+// ===== Checkpoint / Rollback =====
+
+pub const MAX_CHECKPOINTS: u32 = 10;
+
+/// Metadata stored alongside each checkpoint snapshot.
+#[contracttype]
+#[derive(Clone)]
+pub struct CheckpointMeta {
+    pub checkpoint_id: u64,
+    pub label: String,
+    pub timestamp: u64,
+    pub data_size: u32,  // number of credential IDs captured
+    pub hash: u64,       // rolling hash of the snapshot
+}
+
+/// Storage keys for checkpoints.
+#[contracttype]
+pub enum CheckpointKey {
+    /// Ordered list of checkpoint IDs (Vec<u64>)
+    Index,
+    /// Metadata for a specific checkpoint
+    Meta(u64),
+    /// Snapshot: list of credential IDs at checkpoint time (Vec<u64>)
+    Snapshot(u64),
+}
+
+/// Compute a simple hash over a list of credential IDs.
+fn snapshot_hash(ids: &Vec<u64>) -> u64 {
+    let mut h: u64 = 14695981039346656037u64; // FNV-1a offset basis
+    for id in ids.iter() {
+        let bytes = (*id).to_le_bytes();
+        for b in bytes {
+            h ^= b as u64;
+            h = h.wrapping_mul(1099511628211u64);
+        }
+    }
+    h
+}
+
+/// Collect all credential IDs currently stored (scanning up to the stored count).
+fn collect_credential_ids(env: &Env) -> Vec<u64> {
+    let count: u64 = env
+        .storage()
+        .instance()
+        .get(&DNAStorageKey::DNACredentialCount)
+        .unwrap_or(0);
+    let mut ids = Vec::new(env);
+    for i in 1..=count {
+        if env
+            .storage()
+            .persistent()
+            .has(&DNAStorageKey::DNACredential(i))
+        {
+            ids.push_back(i);
+        }
+    }
+    ids
+}
+
+/// Create a checkpoint of the current DNA storage state.
+/// Returns the new checkpoint ID.
+/// Panics if MAX_CHECKPOINTS is already reached.
+pub fn create_checkpoint(env: &Env, label: String) -> u64 {
+    let mut index: Vec<u64> = env
+        .storage()
+        .instance()
+        .get(&CheckpointKey::Index)
+        .unwrap_or_else(|| Vec::new(env));
+
+    if index.len() as u32 >= MAX_CHECKPOINTS {
+        panic!("Maximum checkpoint limit reached");
+    }
+
+    let checkpoint_id = env.ledger().sequence() as u64;
+    let snapshot = collect_credential_ids(env);
+    let hash = snapshot_hash(&snapshot);
+
+    let meta = CheckpointMeta {
+        checkpoint_id,
+        label,
+        timestamp: env.ledger().timestamp(),
+        data_size: snapshot.len() as u32,
+        hash,
+    };
+
+    env.storage()
+        .instance()
+        .set(&CheckpointKey::Meta(checkpoint_id), &meta);
+    env.storage()
+        .instance()
+        .set(&CheckpointKey::Snapshot(checkpoint_id), &snapshot);
+
+    index.push_back(checkpoint_id);
+    env.storage()
+        .instance()
+        .set(&CheckpointKey::Index, &index);
+
+    // Verify integrity immediately after capture
+    let recalc = snapshot_hash(&snapshot);
+    if recalc != hash {
+        panic!("Checkpoint integrity check failed on creation");
+    }
+
+    checkpoint_id
+}
+
+/// Restore DNA storage state to a previous checkpoint.
+/// Only credentials captured in the snapshot are retained (others removed).
+/// Returns true on success.
+pub fn restore_checkpoint(env: &Env, checkpoint_id: u64) -> bool {
+    let snapshot: Vec<u64> = env
+        .storage()
+        .instance()
+        .get(&CheckpointKey::Snapshot(checkpoint_id))
+        .unwrap_or_else(|| panic!("Checkpoint not found"));
+
+    let meta: CheckpointMeta = env
+        .storage()
+        .instance()
+        .get(&CheckpointKey::Meta(checkpoint_id))
+        .unwrap_or_else(|| panic!("Checkpoint metadata not found"));
+
+    // Verify integrity before restoring
+    let hash = snapshot_hash(&snapshot);
+    if hash != meta.hash {
+        panic!("Checkpoint integrity verification failed");
+    }
+
+    // Remove credentials not in the snapshot
+    let current = collect_credential_ids(env);
+    for cred_id in current.iter() {
+        let mut found = false;
+        for snap_id in snapshot.iter() {
+            if *snap_id == *cred_id {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            env.storage()
+                .persistent()
+                .remove(&DNAStorageKey::DNACredential(*cred_id));
+        }
+    }
+
+    // Update credential count to match snapshot
+    env.storage()
+        .instance()
+        .set(&DNAStorageKey::DNACredentialCount, &(snapshot.len() as u64));
+
+    true
+}
+
+/// Return metadata for all stored checkpoints, ordered by creation.
+pub fn list_checkpoints(env: &Env) -> Vec<CheckpointMeta> {
+    let index: Vec<u64> = env
+        .storage()
+        .instance()
+        .get(&CheckpointKey::Index)
+        .unwrap_or_else(|| Vec::new(env));
+
+    let mut result = Vec::new(env);
+    for id in index.iter() {
+        if let Some(meta) = env
+            .storage()
+            .instance()
+            .get::<_, CheckpointMeta>(&CheckpointKey::Meta(*id))
+        {
+            result.push_back(meta);
+        }
+    }
+    result
+}
+
+/// Delete a checkpoint by ID (admin operation).
+/// Returns true if the checkpoint existed and was removed.
+pub fn delete_checkpoint(env: &Env, checkpoint_id: u64) -> bool {
+    let mut index: Vec<u64> = env
+        .storage()
+        .instance()
+        .get(&CheckpointKey::Index)
+        .unwrap_or_else(|| Vec::new(env));
+
+    let mut found = false;
+    let mut new_index = Vec::new(env);
+    for id in index.iter() {
+        if *id == checkpoint_id {
+            found = true;
+        } else {
+            new_index.push_back(*id);
+        }
+    }
+
+    if !found {
+        return false;
+    }
+
+    env.storage()
+        .instance()
+        .remove(&CheckpointKey::Meta(checkpoint_id));
+    env.storage()
+        .instance()
+        .remove(&CheckpointKey::Snapshot(checkpoint_id));
+    env.storage()
+        .instance()
+        .set(&CheckpointKey::Index, &new_index);
+
+    true
+}
