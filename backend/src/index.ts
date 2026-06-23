@@ -11,6 +11,8 @@ import { connectRedis } from './utils/redis';
 import { initWebsocketService } from './services/websocketService';
 import { setSyncWebsocketEmitter } from './services/syncService';
 import { initCollaborationService } from './services/initCollaboration';
+import { MigrationRunner, createPool } from './utils/migrate';
+import * as path from 'path';
 // @ts-ignore
 import SecureRealtimeCommunication from './services/secureRealtimeCommunication';
 import { swaggerSpec } from './config/swagger';
@@ -231,6 +233,20 @@ const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
+    // Run migrations automatically if DATABASE_URL is configured
+    const autoRunMigrations = process.env.AUTO_RUN_MIGRATIONS !== 'false';
+    if (process.env.DATABASE_URL && autoRunMigrations) {
+      try {
+        const pool = createPool();
+        const migrationsDir = path.join(process.cwd(), 'migrations');
+        const migrationRunner = new MigrationRunner(pool, migrationsDir, true);
+        await migrationRunner.autoMigrate();
+        await pool.end();
+      } catch (migrationError) {
+        logger.warn('Migration auto-run failed, continuing startup', migrationError);
+      }
+    }
+
     await (transactionQueue as any).startProcessing();
     await (transactionProcessor as any).start();
     await (transactionEvents as any).startListening();

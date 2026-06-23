@@ -1,270 +1,516 @@
 import { Pool } from 'pg';
-import path from 'path';
-import fs from 'fs';
-import dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 import logger from './logger';
 
-dotenv.config();
-
-const MIGRATIONS_TABLE = '_migrations';
-const MIGRATIONS_DIR = path.resolve(__dirname, '../../migrations');
-const ADVISORY_LOCK_ID = 123456789;
-
-interface MigrationRecord {
-  id: string;
-  name: string;
-  executed_at: Date;
-  duration_ms: number;
-  status: 'applied' | 'failed';
-  error?: string;
+interface MigrationFile {
+  filename: string;
+  version: string;
+  path: string;
 }
 
 interface MigrationModule {
-  up: (pool: Pool) => Promise<void>;
-  down: (pool: Pool) => Promise<void>;
+  up: (pool: Pool) => Promise<void> | void;
+  down: (pool: Pool) => Promise<void> | void;
+  validate?: (pool: Pool) => Promise<void> | void;
+  version?: string;
+  description?: string;
+  dependencies?: string[];
 }
 
-interface MigFile {
-  id: string;
+interface MigrationRecord {
+  id: number;
+  version: string;
   name: string;
-  module: MigrationModule;
+  applied_at: Date;
+  execution_time_ms: number;
 }
 
-export class Migrator {
-  private pool: Pool;
+export class MigrationRunner {
+  private readonly pool: Pool;
+  private readonly migrationsDir: string;
+  private readonly autoRun: boolean;
 
-  constructor(pool?: Pool) {
-    this.pool = pool || new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/aethermint',
-    });
+  constructor(pool: Pool, migrationsDir: string, autoRun: boolean = true) {
+    this.pool = pool;
+    this.migrationsDir = migrationsDir;
+    this.autoRun = autoRun;
   }
 
-  async init(): Promise<void> {
+  /**
+   * Initialize the migrations table if it doesn't exist
+   */
+  private async initializeMigrationsTable(): Promise<void> {
     await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
-        id VARCHAR(255) PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id SERIAL PRIMARY KEY,
+        version VARCHAR(20) NOT NULL UNIQUE,
         name VARCHAR(255) NOT NULL,
-        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        duration_ms INTEGER NOT NULL DEFAULT 0,
-        status VARCHAR(20) NOT NULL DEFAULT 'applied',
-        error TEXT
+        applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        execution_time_ms INTEGER NOT NULL DEFAULT 0
       )
     `);
+
+    // Create index for faster lookups
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_schema_migrations_version 
+      ON schema_migrations(version)
+    `);
+
+    logger.info('Migrations table initialized');
   }
 
-  private async acquireLock(): Promise<boolean> {
-    const result = await this.pool.query('SELECT pg_try_advisory_lock($1) as locked', [ADVISORY_LOCK_ID]);
-    return result.rows[0].locked;
-  }
+  /**
+   * Get all migration files from the migrations directory
+   */
+  private getMigrationFiles(): MigrationFile[] {
+    if (!fs.existsSync(this.migrationsDir)) {
+      logger.warn(`Migrations directory does not exist: ${this.migrationsDir}`);
+      return [];
+    }
 
-  private async releaseLock(): Promise<void> {
-    await this.pool.query('SELECT pg_advisory_unlock($1)', [ADVISORY_LOCK_ID]);
-  }
-
-  private loadMigrations(): MigFile[] {
-    const files = fs.readdirSync(MIGRATIONS_DIR)
-      .filter(f => f.endsWith('.js'))
+    const files = fs.readdirSync(this.migrationsDir)
+      .filter(file => file.endsWith('.js') || file.endsWith('.ts'))
       .sort();
 
-    return files.map(file => {
-      const mod = require(path.join(MIGRATIONS_DIR, file)) as MigrationModule;
-      const id = path.basename(file, '.js');
-      return { id, name: file, module: mod };
+    return files.map(filename => {
+      const version = filename.split('_')[0];
+      return {
+        filename,
+        version,
+        path: path.join(this.migrationsDir, filename)
+      };
     });
   }
 
-  async getAppliedMigrations(): Promise<MigrationRecord[]> {
+  /**
+   * Get applied migrations from the database
+   */
+  private async getAppliedMigrations(): Promise<MigrationRecord[]> {
     const result = await this.pool.query(
-      `SELECT * FROM ${MIGRATIONS_TABLE} ORDER BY id ASC`
+      'SELECT * FROM schema_migrations ORDER BY version ASC'
     );
     return result.rows;
   }
 
-  async up(count?: number): Promise<void> {
-    if (!await this.acquireLock()) {
-      logger.error('Failed to acquire migration lock. Another migration may be in progress.');
-      throw new Error('Migration lock could not be acquired');
+  /**
+   * Load a migration module
+   */
+  private async loadMigration(migrationPath: string): Promise<MigrationModule> {
+    // Clear require cache to ensure fresh load
+    delete require.cache[require.resolve(migrationPath)];
+    
+    const migration = require(migrationPath);
+    
+    // Handle both CommonJS and ES modules
+    if (migration.default) {
+      return migration.default;
     }
+    
+    // Handle Knex-style exports
+    if (migration.up && typeof migration.up === 'function') {
+      return {
+        up: async (pool: Pool) => {
+          // Create a Knex-like interface for the pool
+          const knexLike = this.createKnexLikeInterface(pool);
+          await migration.up(knexLike);
+        },
+        down: async (pool: Pool) => {
+          const knexLike = this.createKnexLikeInterface(pool);
+          await migration.down(knexLike);
+        }
+      };
+    }
+    
+    return migration;
+  }
 
+  /**
+   * Create a Knex-like interface for compatibility with existing migrations
+   */
+  private createKnexLikeInterface(pool: Pool) {
+    return {
+      schema: {
+        createTable: (tableName: string, callback: any) => {
+          const builder = new TableBuilder(tableName);
+          callback(builder);
+          return pool.query(builder.getCreateSQL());
+        },
+        alterTable: (tableName: string, callback: any) => {
+          const builder = new TableBuilder(tableName, true);
+          callback(builder);
+          return pool.query(builder.getAlterSQL());
+        },
+        dropTableIfExists: (tableName: string) => {
+          return pool.query(`DROP TABLE IF EXISTS ${tableName}`);
+        },
+        hasTable: async (tableName: string) => {
+          const result = await pool.query(
+            'SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)',
+            [tableName]
+          );
+          return result.rows[0].exists;
+        }
+      },
+      raw: (sql: string) => pool.query(sql),
+      query: (table: string) => ({
+        where: (column: string, value: any) => ({
+          del: () => pool.query(`DELETE FROM ${table} WHERE ${column} = $1`, [value])
+        }),
+        insert: (data: any) => {
+          const columns = Object.keys(data);
+          const values = Object.values(data);
+          const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+          return pool.query(
+            `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`,
+            values
+          );
+        }
+      }),
+      fn: {
+        now: () => 'CURRENT_TIMESTAMP'
+      }
+    };
+  }
+
+  /**
+   * Run pending migrations
+   */
+  async up(): Promise<void> {
     try {
-      await this.init();
-      const allMigrations = this.loadMigrations();
-      const applied = await this.getAppliedMigrations();
-      const appliedIds = new Set(applied.filter(r => r.status === 'applied').map(r => r.id));
+      await this.initializeMigrationsTable();
 
-      const pending = allMigrations.filter(m => !appliedIds.has(m.id));
-      const target = count ? pending.slice(0, count) : pending;
+      const migrationFiles = this.getMigrationFiles();
+      const appliedMigrations = await this.getAppliedMigrations();
+      const appliedVersions = new Set(appliedMigrations.map(m => m.version));
 
-      if (target.length === 0) {
+      const pendingMigrations = migrationFiles.filter(
+        m => !appliedVersions.has(m.version)
+      );
+
+      if (pendingMigrations.length === 0) {
         logger.info('No pending migrations to run');
         return;
       }
 
-      logger.info(`Running ${target.length} migration(s)...`);
+      logger.info(`Found ${pendingMigrations.length} pending migration(s)`);
 
-      for (const migration of target) {
-        const start = Date.now();
-        try {
-          await this.pool.query('BEGIN');
-          await migration.module.up(this.pool);
-          await this.pool.query('COMMIT');
-
-          const duration = Date.now() - start;
-          await this.pool.query(
-            `INSERT INTO ${MIGRATIONS_TABLE} (id, name, duration_ms, status) VALUES ($1, $2, $3, 'applied')`,
-            [migration.id, migration.name, duration]
-          );
-          logger.info(`Applied migration: ${migration.name} (${duration}ms)`);
-        } catch (err: any) {
-          await this.pool.query('ROLLBACK');
-          const duration = Date.now() - start;
-          const errorMsg = err.message || String(err);
-
-          try {
-            await this.pool.query(
-              `INSERT INTO ${MIGRATIONS_TABLE} (id, name, duration_ms, status, error) VALUES ($1, $2, $3, 'failed', $4)
-               ON CONFLICT (id) DO UPDATE SET status = 'failed', error = $4`,
-              [migration.id, migration.name, duration, errorMsg]
-            );
-          } catch (_) {}
-
-          logger.error(`Migration failed: ${migration.name} - ${errorMsg}`);
-          throw err;
-        }
+      for (const migration of pendingMigrations) {
+        await this.runMigration(migration, 'up');
       }
-    } finally {
-      await this.releaseLock();
+
+      logger.info('All migrations completed successfully');
+    } catch (error) {
+      logger.error('Migration failed', error);
+      throw error;
     }
   }
 
-  async down(count: number = 1): Promise<void> {
-    if (!await this.acquireLock()) {
-      logger.error('Failed to acquire migration lock. Another migration may be in progress.');
-      throw new Error('Migration lock could not be acquired');
-    }
-
+  /**
+   * Rollback the last migration
+   */
+  async down(): Promise<void> {
     try {
-      await this.init();
-      const allMigrations = this.loadMigrations();
-      const applied = await this.getAppliedMigrations();
-      const appliedList = applied
-        .filter(r => r.status === 'applied')
-        .sort((a, b) => b.id.localeCompare(a.id));
+      await this.initializeMigrationsTable();
 
-      if (appliedList.length === 0) {
-        logger.info('No applied migrations to roll back');
+      const appliedMigrations = await this.getAppliedMigrations();
+
+      if (appliedMigrations.length === 0) {
+        logger.info('No migrations to rollback');
         return;
       }
 
-      const toRollback = appliedList.slice(0, count);
+      const lastMigration = appliedMigrations[appliedMigrations.length - 1];
+      const migrationFiles = this.getMigrationFiles();
+      const migrationFile = migrationFiles.find(m => m.version === lastMigration.version);
 
-      for (const record of toRollback) {
-        const migration = allMigrations.find(m => m.id === record.id);
-        if (!migration) {
-          logger.error(`Migration file not found: ${record.name}`);
-          continue;
-        }
-
-        const start = Date.now();
-        try {
-          await this.pool.query('BEGIN');
-          await migration.module.down(this.pool);
-          await this.pool.query('COMMIT');
-
-          const duration = Date.now() - start;
-          await this.pool.query(
-            `DELETE FROM ${MIGRATIONS_TABLE} WHERE id = $1`,
-            [migration.id]
-          );
-          logger.info(`Rolled back migration: ${migration.name} (${duration}ms)`);
-        } catch (err: any) {
-          await this.pool.query('ROLLBACK');
-          logger.error(`Rollback failed: ${migration.name} - ${err.message}`);
-          throw err;
-        }
+      if (!migrationFile) {
+        throw new Error(`Migration file not found for version ${lastMigration.version}`);
       }
-    } finally {
-      await this.releaseLock();
-    }
-  }
 
-  async status(): Promise<void> {
-    await this.init();
-    const allMigrations = this.loadMigrations();
-    const records = await this.getAppliedMigrations();
-    const appliedMap = new Map(records.map(r => [r.id, r]));
+      logger.info(`Rolling back migration: ${lastMigration.version}`);
+      await this.runMigration(migrationFile, 'down');
 
-    console.log('\nMigration Status:');
-    console.log('─'.repeat(90));
-    console.log('  ID'.padEnd(8), 'Name'.padEnd(35), 'Status'.padEnd(14), 'Duration'.padEnd(10), 'Executed At');
-    console.log('─'.repeat(90));
-
-    for (const m of allMigrations) {
-      const record = appliedMap.get(m.id);
-      const status = record ? record.status : 'pending';
-      const duration = record ? `${record.duration_ms}ms` : '-';
-      const executedAt = record ? new Date(record.executed_at).toISOString().replace('T', ' ').substring(0, 19) : '-';
-      const statusStr = status === 'applied' ? 'APPLIED' : status === 'failed' ? 'FAILED' : 'PENDING';
-      console.log(
-        `  ${m.id.padEnd(6)} ${m.name.padEnd(33)} ${statusStr.padEnd(14)} ${duration.padEnd(10)} ${executedAt}`
+      // Remove migration record
+      await this.pool.query(
+        'DELETE FROM schema_migrations WHERE version = $1',
+        [lastMigration.version]
       );
-    }
 
-    console.log('─'.repeat(90));
-    const pending = allMigrations.filter(m => {
-      const r = appliedMap.get(m.id);
-      return !r || r.status !== 'applied';
-    });
-    const failed = allMigrations.filter(m => {
-      const r = appliedMap.get(m.id);
-      return r && r.status === 'failed';
-    });
-    console.log(`\nSummary: ${allMigrations.length} total, ${allMigrations.length - pending.length} applied, ${pending.length} pending, ${failed.length} failed\n`);
+      logger.info(`Migration ${lastMigration.version} rolled back successfully`);
+    } catch (error) {
+      logger.error('Rollback failed', error);
+      throw error;
+    }
   }
 
-  async close(): Promise<void> {
-    await this.pool.end();
+  /**
+   * Run a single migration with transaction support
+   */
+  private async runMigration(migration: MigrationFile, direction: 'up' | 'down'): Promise<void> {
+    const client = await this.pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      const startTime = Date.now();
+      const migrationModule = await this.loadMigration(migration.path);
+
+      logger.info(`Running migration ${direction}: ${migration.filename}`);
+
+      if (direction === 'up') {
+        await migrationModule.up(this.pool);
+        
+        // Record migration
+        await client.query(
+          `INSERT INTO schema_migrations (version, name, applied_at, execution_time_ms)
+           VALUES ($1, $2, CURRENT_TIMESTAMP, $3)`,
+          [migration.version, migration.filename, Date.now() - startTime]
+        );
+      } else {
+        await migrationModule.down(this.pool);
+      }
+
+      await client.query('COMMIT');
+
+      const executionTime = Date.now() - startTime;
+      logger.info(`Migration ${direction} completed: ${migration.filename} (${executionTime}ms)`);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error(`Migration ${direction} failed, rolled back: ${migration.filename}`, error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Get migration status
+   */
+  async status(): Promise<void> {
+    try {
+      await this.initializeMigrationsTable();
+
+      const migrationFiles = this.getMigrationFiles();
+      const appliedMigrations = await this.getAppliedMigrations();
+      const appliedVersions = new Set(appliedMigrations.map(m => m.version));
+
+      const pending = migrationFiles.filter(m => !appliedVersions.has(m.version));
+      const applied = migrationFiles.filter(m => appliedVersions.has(m.version));
+
+      console.log('\n=== Migration Status ===');
+      console.log(`Total migrations: ${migrationFiles.length}`);
+      console.log(`Applied: ${applied.length}`);
+      console.log(`Pending: ${pending.length}\n`);
+
+      if (applied.length > 0) {
+        console.log('Applied migrations:');
+        applied.forEach(m => {
+          const record = appliedMigrations.find(am => am.version === m.version);
+          console.log(`  ✓ ${m.filename} (applied at ${record?.applied_at.toISOString()})`);
+        });
+      }
+
+      if (pending.length > 0) {
+        console.log('\nPending migrations:');
+        pending.forEach(m => {
+          console.log(`  ○ ${m.filename}`);
+        });
+      }
+
+      console.log('\n');
+    } catch (error) {
+      logger.error('Failed to get migration status', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Run migrations automatically on startup if configured
+   */
+  async autoMigrate(): Promise<void> {
+    if (this.autoRun) {
+      logger.info('Auto-running migrations on startup');
+      await this.up();
+    } else {
+      logger.info('Auto-migration disabled, skipping');
+    }
   }
 }
 
-async function main() {
-  const command = process.argv[2];
-  const count = process.argv[3] ? parseInt(process.argv[3], 10) : undefined;
+/**
+ * Simple table builder for Knex-like compatibility
+ */
+class TableBuilder {
+  private readonly columns: string[] = [];
+  private readonly indexes: string[] = [];
+  private readonly uniques: string[] = [];
+  private readonly alterMode: boolean;
 
-  const migrator = new Migrator();
+  constructor(private readonly tableName: string, alterMode: boolean = false) {
+    this.alterMode = alterMode;
+  }
 
+  string(name: string, options?: { primary?: boolean; nullable?: boolean; comment?: string }) {
+    const sql = `${name} VARCHAR(255)`;
+    this.addColumn(name, sql, options);
+    return this;
+  }
+
+  integer(name: string, options?: { primary?: boolean; nullable?: boolean; comment?: string }) {
+    const sql = `${name} INTEGER`;
+    this.addColumn(name, sql, options);
+    return this;
+  }
+
+  text(name: string, options?: { nullable?: boolean; comment?: string }) {
+    const sql = `${name} TEXT`;
+    this.addColumn(name, sql, options);
+    return this;
+  }
+
+  timestamp(name: string, options?: { nullable?: boolean; defaultTo?: string; comment?: string }) {
+    let sql = `${name} TIMESTAMP`;
+    if (options?.defaultTo) {
+      sql += ` DEFAULT ${options.defaultTo}`;
+    }
+    this.addColumn(name, sql, options);
+    return this;
+  }
+
+  boolean(name: string, options?: { defaultTo?: boolean; comment?: string }) {
+    let sql = `${name} BOOLEAN`;
+    if (options?.defaultTo !== undefined) {
+      sql += ` DEFAULT ${options.defaultTo}`;
+    }
+    this.addColumn(name, sql, options);
+    return this;
+  }
+
+  json(name: string, options?: { defaultTo?: string; comment?: string }) {
+    let sql = `${name} JSONB`;
+    if (options?.defaultTo) {
+      sql += ` DEFAULT ${options.defaultTo}`;
+    }
+    this.addColumn(name, sql, options);
+    return this;
+  }
+
+  private addColumn(name: string, type: string, options?: any) {
+    if (this.alterMode) {
+      const nullable = options?.nullable === false ? ' NOT NULL' : '';
+      this.columns.push(`ADD COLUMN ${type}${nullable}`);
+    } else {
+      const constraints = [];
+      if (options?.primary) constraints.push('PRIMARY KEY');
+      if (options?.nullable === false) constraints.push('NOT NULL');
+      if (options?.comment) constraints.push(`COMMENT '${options.comment}'`);
+      
+      this.columns.push(`${type}${constraints.length ? ' ' + constraints.join(' ') : ''}`);
+    }
+  }
+
+  index(columns: string | string[], indexName?: string) {
+    const colArray = Array.isArray(columns) ? columns : [columns];
+    const name = indexName || `idx_${this.tableName}_${colArray.join('_')}`;
+    this.indexes.push(
+      `CREATE INDEX IF NOT EXISTS ${name} ON ${this.tableName}(${colArray.join(', ')})`
+    );
+    return this;
+  }
+
+  unique(columns: string | string[], uniqueName?: string) {
+    const colArray = Array.isArray(columns) ? columns : [columns];
+    const name = uniqueName || `uq_${this.tableName}_${colArray.join('_')}`;
+    this.uniques.push(
+      `CONSTRAINT ${name} UNIQUE (${colArray.join(', ')})`
+    );
+    return this;
+  }
+
+  dropColumn(name: string) {
+    this.columns.push(`DROP COLUMN ${name}`);
+    return this;
+  }
+
+  getCreateSQL(): string {
+    const columnsSQL = this.columns.map(c => `  ${c}`).join(',\n');
+    const uniqueSQL = this.uniques.length ? ',\n  ' + this.uniques.join(',\n  ') : '';
+    
+    return `
+      CREATE TABLE IF NOT EXISTS ${this.tableName} (
+        ${columnsSQL}${uniqueSQL}
+      )
+    `;
+  }
+
+  getAlterSQL(): string {
+    return `ALTER TABLE ${this.tableName}\n  ${this.columns.join(',\n  ')}`;
+  }
+
+  getIndexesSQL(): string[] {
+    return this.indexes;
+  }
+}
+
+/**
+ * Create database pool from environment variables
+ */
+export function createPool(): Pool {
+  const databaseUrl = process.env.DATABASE_URL;
+  
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL environment variable is not set');
+  }
+
+  return new Pool({
+    connectionString: databaseUrl,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  });
+}
+
+/**
+ * Main entry point for CLI commands
+ */
+export async function runMigrationCommand(command: string, autoRun: boolean = true): Promise<void> {
+  const pool = createPool();
+  const migrationsDir = path.join(process.cwd(), 'migrations');
+  
   try {
+    const runner = new MigrationRunner(pool, migrationsDir, autoRun);
+
     switch (command) {
       case 'up':
-        await migrator.up(count);
+        await runner.up();
         break;
       case 'down':
-        await migrator.down(count || 1);
+        await runner.down();
         break;
       case 'status':
-        await migrator.status();
+        await runner.status();
         break;
       default:
-        console.log('Usage: ts-node src/utils/migrate.ts <up|down|status> [count]');
-        console.log('');
-        console.log('Commands:');
-        console.log('  up              Run all pending migrations');
-        console.log('  up <N>          Run next N pending migrations');
-        console.log('  down            Roll back the last migration');
-        console.log('  down <N>        Roll back the last N migrations');
-        console.log('  status          Show migration status');
+        console.error(`Unknown command: ${command}`);
+        console.error('Available commands: up, down, status');
         process.exit(1);
     }
-  } catch (err: any) {
-    logger.error(`Migration command failed: ${err.message}`);
-    process.exit(1);
   } finally {
-    await migrator.close();
+    await pool.end();
   }
 }
 
+// CLI entry point
 if (require.main === module) {
-  main();
+  const command = process.argv[2];
+  if (!command) {
+    console.error('Usage: ts-node src/utils/migrate.ts <command>');
+    console.error('Available commands: up, down, status');
+    process.exit(1);
+  }
+  runMigrationCommand(command, false).catch(error => {
+    console.error('Migration command failed:', error);
+    process.exit(1);
+  });
 }
-
-export default Migrator;
